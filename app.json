@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "Chemical Stock",
+    "slug": "chemical-stock",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "chemical-stock-app",
+    "userInterfaceStyle": "automatic",
+    "owner": "satheeshkannan",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.chemicalstock.app"
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"  
+    },
+    "plugins": [
+      "expo-router",
+      "expo-dev-client",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "minSdkVersion": 24,
+            "kotlinVersion": "2.1.20",
+            "usesCleartextTraffic": true,
+            "newArchEnabled": false,
+            "gradlePluginVersion": "8.7.3",
+            "ndkVersion": "27.0.12077973"
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": false
+    },
+    "extra": {
+      "eas": {
+        "projectId": "94f7b6c8-5d42-4d8e-8927-8f6cd80aa33c"
+      }
+    }
+  }
+}

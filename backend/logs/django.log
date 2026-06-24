@@ -1,0 +1,84 @@
+INFO 2026-03-22 19:42:50,183 autoreload 15996 14408 Watching for file changes with StatReloader
+INFO 2026-03-22 20:18:50,676 autoreload 17588 17596 Watching for file changes with StatReloader
+INFO 2026-03-22 20:28:48,813 autoreload 18016 2176 Watching for file changes with StatReloader
+INFO 2026-03-22 20:31:08,483 autoreload 7380 17488 Watching for file changes with StatReloader
+INFO 2026-03-22 20:35:40,953 autoreload 9044 9564 Watching for file changes with StatReloader
+INFO 2026-03-22 20:59:19,281 autoreload 952 13448 Watching for file changes with StatReloader
+INFO 2026-03-22 21:01:10,869 autoreload 19300 17936 Watching for file changes with StatReloader
+INFO 2026-03-22 21:01:36,012 autoreload 8168 15668 Watching for file changes with StatReloader
+INFO 2026-03-22 21:03:06,507 autoreload 8168 15668 C:\ReactNative\ChemicalStock\backend\chemical_stock\settings.py changed, reloading.
+INFO 2026-03-22 21:03:08,073 autoreload 11652 19316 Watching for file changes with StatReloader
+INFO 2026-03-22 21:05:12,890 autoreload 1324 9144 Watching for file changes with StatReloader
+INFO 2026-03-22 21:07:55,683 autoreload 1324 9144 C:\ReactNative\ChemicalStock\backend\chemical_stock\urls.py changed, reloading.
+INFO 2026-03-22 21:07:57,255 autoreload 19092 14060 Watching for file changes with StatReloader
+INFO 2026-03-22 21:08:01,264 autoreload 19092 14060 C:\ReactNative\ChemicalStock\backend\chemical_stock\urls.py changed, reloading.
+INFO 2026-03-22 21:08:02,588 autoreload 17952 19024 Watching for file changes with StatReloader
+INFO 2026-03-22 21:08:39,278 autoreload 6728 16572 Watching for file changes with StatReloader
+INFO 2026-03-22 21:09:06,205 autoreload 14356 18368 Watching for file changes with StatReloader
+INFO 2026-03-22 21:11:00,328 autoreload 17788 19048 Watching for file changes with StatReloader
+INFO 2026-05-05 22:44:11,110 autoreload 9956 11964 Watching for file changes with StatReloader
+INFO 2026-05-05 22:53:05,529 autoreload 19364 17336 Watching for file changes with StatReloader
+INFO 2026-05-05 22:56:48,246 autoreload 15604 9340 Watching for file changes with StatReloader
+INFO 2026-05-05 23:08:38,433 autoreload 9688 16744 Watching for file changes with StatReloader
+INFO 2026-05-05 23:22:15,569 autoreload 11544 14312 Watching for file changes with StatReloader
+INFO 2026-05-05 23:31:57,269 autoreload 4272 14348 Watching for file changes with StatReloader
+INFO 2026-05-05 23:32:21,913 autoreload 1528 12144 Watching for file changes with StatReloader
+INFO 2026-05-05 23:32:52,183 autoreload 11544 14312 D:\ReactNative\ChemicalStock\backend\apps\clients\apps.py changed, reloading.
+INFO 2026-05-05 23:32:53,018 autoreload 5872 11968 Watching for file changes with StatReloader
+INFO 2026-05-05 23:32:53,059 autoreload 1528 12144 D:\ReactNative\ChemicalStock\backend\apps\clients\apps.py changed, reloading.
+INFO 2026-05-05 23:32:54,251 autoreload 8868 5464 Watching for file changes with StatReloader
+INFO 2026-05-05 23:32:56,819 autoreload 8868 5464 D:\ReactNative\ChemicalStock\backend\apps\clients\models.py changed, reloading.
+INFO 2026-05-05 23:32:57,074 autoreload 5872 11968 D:\ReactNative\ChemicalStock\backend\apps\clients\models.py changed, reloading.
+INFO 2026-05-05 23:32:57,743 autoreload 14852 7704 Watching for file changes with StatReloader
+INFO 2026-05-05 23:32:58,084 autoreload 12680 17988 Watching for file changes with StatReloader
+INFO 2026-05-05 23:33:03,505 autoreload 14852 7704 D:\ReactNative\ChemicalStock\backend\apps\clients\models.py changed, reloading.
+INFO 2026-05-05 23:33:03,831 autoreload 12680 17988 D:\ReactNative\ChemicalStock\backend\apps\clients\models.py changed, reloading.
+INFO 2026-05-05 23:33:04,432 autoreload 18612 13072 Watching for file changes with StatReloader
+INFO 2026-05-05 23:33:04,786 autoreload 9988 13036 Watching for file changes with StatReloader
+INFO 2026-05-05 23:34:41,106 autoreload 19420 11040 Watching for file changes with StatReloader
+INFO 2026-05-05 23:40:43,414 autoreload 19420 11040 D:\ReactNative\ChemicalStock\backend\apps\vendors\models.py changed, reloading.
+INFO 2026-05-05 23:40:43,872 autoreload 9988 13036 D:\ReactNative\ChemicalStock\backend\apps\vendors\models.py changed, reloading.
+INFO 2026-05-05 23:40:44,565 autoreload 9312 3028 Watching for file changes with StatReloader
+INFO 2026-05-05 23:40:44,835 autoreload 9372 1596 Watching for file changes with StatReloader
+INFO 2026-05-05 23:49:34,040 autoreload 9680 12932 Watching for file changes with StatReloader
+INFO 2026-05-05 23:50:40,875 autoreload 9372 1596 D:\ReactNative\ChemicalStock\backend\apps\vendors\apps.py changed, reloading.
+INFO 2026-05-05 23:50:41,357 autoreload 9680 12932 D:\ReactNative\ChemicalStock\backend\apps\vendors\apps.py changed, reloading.
+INFO 2026-05-05 23:50:42,138 autoreload 17260 2172 Watching for file changes with StatReloader
+INFO 2026-05-05 23:50:42,369 autoreload 16508 6868 Watching for file changes with StatReloader
+INFO 2026-05-05 23:50:49,359 autoreload 17260 2172 D:\ReactNative\ChemicalStock\backend\apps\vendors\models.py changed, reloading.
+INFO 2026-05-05 23:50:50,246 autoreload 5828 14936 Watching for file changes with StatReloader
+INFO 2026-05-05 23:50:50,338 autoreload 16508 6868 D:\ReactNative\ChemicalStock\backend\apps\vendors\models.py changed, reloading.
+INFO 2026-05-05 23:50:51,237 autoreload 6516 8468 Watching for file changes with StatReloader
+INFO 2026-05-05 23:51:01,205 autoreload 6516 8468 D:\ReactNative\ChemicalStock\backend\apps\vendors\models.py changed, reloading.
+INFO 2026-05-05 23:51:01,374 autoreload 5828 14936 D:\ReactNative\ChemicalStock\backend\apps\vendors\models.py changed, reloading.
+INFO 2026-05-05 23:51:02,459 autoreload 13732 6636 Watching for file changes with StatReloader
+INFO 2026-05-05 23:51:02,600 autoreload 9608 3780 Watching for file changes with StatReloader
+INFO 2026-05-05 23:51:05,252 autoreload 9608 3780 D:\ReactNative\ChemicalStock\backend\apps\vendors\models.py changed, reloading.
+INFO 2026-05-05 23:51:06,218 autoreload 13732 6636 D:\ReactNative\ChemicalStock\backend\apps\vendors\models.py changed, reloading.
+INFO 2026-05-05 23:51:06,312 autoreload 7464 18264 Watching for file changes with StatReloader
+INFO 2026-05-05 23:51:07,188 autoreload 9616 5536 Watching for file changes with StatReloader
+INFO 2026-05-05 23:54:07,043 autoreload 8160 17660 Watching for file changes with StatReloader
+INFO 2026-05-05 23:54:21,493 autoreload 8280 14752 Watching for file changes with StatReloader
+INFO 2026-05-05 23:56:04,569 autoreload 8280 14752 D:\ReactNative\ChemicalStock\backend\apps\audit\models.py changed, reloading.
+INFO 2026-05-05 23:56:04,868 autoreload 7464 18264 D:\ReactNative\ChemicalStock\backend\apps\audit\models.py changed, reloading.
+INFO 2026-05-05 23:56:05,782 autoreload 17808 10944 Watching for file changes with StatReloader
+INFO 2026-05-05 23:56:05,940 autoreload 10564 8600 Watching for file changes with StatReloader
+INFO 2026-05-05 23:59:52,769 autoreload 14492 9112 Watching for file changes with StatReloader
+INFO 2026-05-06 00:00:57,985 autoreload 10564 8600 D:\ReactNative\ChemicalStock\backend\apps\authentication\models.py changed, reloading.
+INFO 2026-05-06 00:00:58,152 autoreload 14492 9112 D:\ReactNative\ChemicalStock\backend\apps\authentication\models.py changed, reloading.
+INFO 2026-05-06 00:00:59,292 autoreload 2468 9676 Watching for file changes with StatReloader
+INFO 2026-05-06 00:00:59,421 autoreload 912 15220 Watching for file changes with StatReloader
+INFO 2026-05-06 00:03:31,112 autoreload 2880 18236 Watching for file changes with StatReloader
+INFO 2026-05-06 00:05:37,976 autoreload 920 2312 Watching for file changes with StatReloader
+INFO 2026-05-06 00:06:28,776 autoreload 920 2312 D:\ReactNative\ChemicalStock\backend\chemical_stock\settings.py changed, reloading.
+INFO 2026-05-06 00:06:29,730 autoreload 10824 18948 Watching for file changes with StatReloader
+INFO 2026-05-06 00:08:42,011 autoreload 10824 18948 D:\ReactNative\ChemicalStock\backend\chemical_stock\settings.py changed, reloading.
+INFO 2026-05-06 00:08:43,284 autoreload 16020 11856 Watching for file changes with StatReloader
+INFO 2026-05-06 00:15:47,132 autoreload 16020 11856 D:\ReactNative\ChemicalStock\backend\chemical_stock\settings.py changed, reloading.
+INFO 2026-05-06 00:15:48,612 autoreload 14968 3596 Watching for file changes with StatReloader
+INFO 2026-05-06 00:21:45,324 autoreload 14968 3596 D:\ReactNative\ChemicalStock\backend\chemical_stock\settings.py changed, reloading.
+INFO 2026-05-06 00:21:46,439 autoreload 13220 18924 Watching for file changes with StatReloader
+INFO 2026-05-06 00:21:51,448 autoreload 13220 18924 D:\ReactNative\ChemicalStock\backend\chemical_stock\settings.py changed, reloading.
+INFO 2026-05-06 00:21:52,750 autoreload 14708 5800 Watching for file changes with StatReloader
+INFO 2026-05-06 00:23:18,934 autoreload 16924 12884 Watching for file changes with StatReloader
+INFO 2026-05-06 00:48:26,968 autoreload 15384 12788 Watching for file changes with StatReloader
