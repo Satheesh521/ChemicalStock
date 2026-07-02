@@ -13,10 +13,11 @@ import { WantProvider } from '../context/want-context-supabase';
 import '../lib/supabase';
 
 // ✅ STEP 2: Polyfill code AFTER all imports
-if (typeof global.crypto === 'undefined') {
-  global.crypto = {
+// Fixed: Use globalThis instead of global
+if (typeof globalThis.crypto === 'undefined') {
+  (globalThis as any).crypto = {
     randomUUID: () => Crypto.randomUUID(),
-  } as any;
+  };
 }
 
 // ✅ STEP 3: Component

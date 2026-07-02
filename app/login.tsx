@@ -1,3 +1,4 @@
+import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -13,7 +14,6 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
@@ -86,29 +86,44 @@ export default function LoginScreen() {
   };
 
   const handleSubmit = async () => {
-  clearError();
-  if (!validateForm()) return;
+    clearError();
+    if (!validateForm()) return;
 
-  try {
-    if (isLogin) {
-      await signIn(email, password);
-      router.replace('/(tabs)');        // Already irukku — good
-    } else {
-      await signUp(email, password, name);
-      Alert.alert('Success', 'Account created! Please login now.', [
-        {
-          text: 'OK',
-          onPress: () => {
-            setIsLogin(true);
-            setPassword('');   // only clear password
-          },
-        },
-      ]);
+    try {
+      if (isLogin) {
+        // ✅ LOGIN
+        await signIn(email, password);
+        
+        // ✅ Navigate to main app after successful login
+        setTimeout(() => {
+          router.replace('/(tabs)');
+        }, 100);
+        
+      } else {
+        // ✅ SIGNUP
+        await signUp(email, password, name);
+        
+        Alert.alert(
+          'Success', 
+          'Account created successfully! Please login now.', 
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setIsLogin(true);
+                setEmail('');
+                setPassword('');
+                setName('');
+              },
+            },
+          ]
+        );
+      }
+    } catch (err: any) {
+      console.error('❌ Submit error:', err);
+      Alert.alert('Error', err.message || error || 'Something went wrong');
     }
-  } catch (err: any) {
-    Alert.alert('Error', err.message || error || 'Something went wrong');
-  }
-};
+  };
 
   const toggleAuthMode = () => {
     setIsLogin(!isLogin);
@@ -253,32 +268,7 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          {/* Divider */}
-          <View style={styles.dividerContainer}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or continue with</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Social Login Buttons */}
-          <View style={styles.socialButtonsContainer}>
-            <TouchableOpacity
-              style={styles.socialButton}
-              disabled={loading}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.socialIcon}>🔵</Text>
-              <Text style={styles.socialButtonText}>Google</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.socialButton}
-              disabled={loading}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.socialIcon}>👆</Text>
-              <Text style={styles.socialButtonText}>Biometric</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Social logins removed as requested */}
         </View>
 
         {/* Footer Section */}
@@ -543,3 +533,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+// sk 

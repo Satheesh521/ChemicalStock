@@ -7,22 +7,22 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { registerWithEmail, error, loading, clearError } = useAuth();
+  const { signUp, error, loading, clearError } = useAuth();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -73,7 +73,7 @@ export default function RegisterScreen() {
     if (!validateForm()) return;
 
     try {
-      await registerWithEmail(email, password);
+      await signUp(email, password, fullName);
       // Redirect happens automatically via useAuth listener
     } catch (err: any) {
       setLocalError(error || 'Registration failed');
