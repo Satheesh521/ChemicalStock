@@ -8,8 +8,8 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "https://rvfrfuptndqlizrfukl.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_HPVv7j8fTYWJBEdQYs6LfA_kxgq1uOy"
+        "EXPO_PUBLIC_SUPABASE_URL": "https://rvfrvfuptndqlizrfukl.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2ZnJ2ZnVwdG5kcWxpenJmdWtsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Njg3MDYsImV4cCI6MjA5MDM0NDcwNn0.jvwZr8s5w-od0yA7w8SrDspP0HRlp4tp9RYDUkfBLZU"
       }
     },
     "preview": {
@@ -18,15 +18,15 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "https://rvfrfuptndqlizrfukl.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_HPVv7j8fTYWJBEdQYs6LfA_kxgq1uOy"
+        "EXPO_PUBLIC_SUPABASE_URL": "https://rvfrvfuptndqlizrfukl.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2ZnJ2ZnVwdG5kcWxpenJmdWtsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Njg3MDYsImV4cCI6MjA5MDM0NDcwNn0.jvwZr8s5w-od0yA7w8SrDspP0HRlp4tp9RYDUkfBLZU"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "https://rvfrfuptndqlizrfukl.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_HPVv7j8fTYWJBEdQYs6LfA_kxgq1uOy"
+        "EXPO_PUBLIC_SUPABASE_URL": "https://rvfrvfuptndqlizrfukl.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2ZnJ2ZnVwdG5kcWxpenJmdWtsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Njg3MDYsImV4cCI6MjA5MDM0NDcwNn0.jvwZr8s5w-od0yA7w8SrDspP0HRlp4tp9RYDUkfBLZU"
       }
     }
   },
