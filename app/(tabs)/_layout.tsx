@@ -43,30 +43,13 @@ export default function TabLayout() {
           ) 
         }} 
       />
-      <Tabs.Screen 
-        name="stock-out" 
-        options={{ 
-          title: 'Stock Out', 
-          tabBarIcon: ({ color }: { color: string }) => (
-            <IconSymbol size={28} name="arrow.down.circle" color={color} />
-          ) 
-        }} 
-      />
+      
       <Tabs.Screen 
         name="qr-demo" 
         options={{ 
           title: 'Stock Entry', 
           tabBarIcon: ({ color }: { color: string }) => (
             <IconSymbol size={28} name="camera.viewfinder" color={color} />
-          ) 
-        }} 
-      />
-      <Tabs.Screen 
-        name="stock" 
-        options={{ 
-          title: 'Stock', 
-          tabBarIcon: ({ color }: { color: string }) => (
-            <IconSymbol size={28} name="square.grid.3x3.fill" color={color} />
           ) 
         }} 
       />
@@ -79,15 +62,7 @@ export default function TabLayout() {
           ) 
         }} 
       />
-      <Tabs.Screen 
-        name="chemicals" 
-        options={{ 
-          title: 'Chemicals', 
-          tabBarIcon: ({ color }: { color: string }) => (
-            <IconSymbol size={28} name="beaker.fill" color={color} />
-          ) 
-        }} 
-      />
+      
       
      
       <Tabs.Screen 

@@ -950,6 +950,8 @@ export function StockOutForm({
 
           <View style={styles.machineNoContainer}>
 
+            <ThemedText style={styles.label}>M/No</ThemedText>
+
 
 
             <TextInput

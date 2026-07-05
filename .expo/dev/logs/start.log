@@ -746,3 +746,9 @@
 {"_e":"devserver:start","_t":1783131314797,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":true,"apiRoutes":false,"exporting":false}
 {"_e":"metro:config","_t":1783131315549,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
 {"_e":"metro:instantiate","_t":1783131326763,"atlas":false,"workers":6,"host":"::","port":8081}
+{"_e":"root:init","_t":1783271245644,"format":"v0-jsonl","version":"56.1.16"}
+{"_e":"env:mode","_t":1783271245645,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1783271245651,"mode":"development","files":["../..\\..\\.env"],"env":{"EXPO_PUBLIC_APP_NAME":"ChemicalStock","EXPO_PUBLIC_DEBUG":"true","EXPO_PUBLIC_ENABLE_LOGGING":"true","EXPO_PUBLIC_SUPABASE_ANON_KEY":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2ZnJ2ZnVwdG5kcWxpenJmdWtsIiwiaWF0IjoxNzc0NzY4NzA2LCJleHAiOjIwOTAzNDQ3MDZ9.jvwZr8s5w-od0yA7w8SrDspP0HRlp4tp9RYDUkfBLZU","EXPO_PUBLIC_SUPABASE_URL":"https://rvfrvfuptndqlizrfukl.supabase.co"}}
+{"_e":"devserver:start","_t":1783271246403,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":true,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1783271247203,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1783271258176,"atlas":false,"workers":6,"host":"::","port":8081}
