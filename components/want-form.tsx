@@ -11,6 +11,7 @@ import {
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useRouter } from 'expo-router';
 
 export type WantItem = {
   id: string;
@@ -77,6 +78,8 @@ export function WantForm({
   handleStartDateChange,
   handleEndDateChange,
 }: WantFormProps) {
+  const router = useRouter();
+
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       {/* Navigation Bar */}
@@ -96,6 +99,15 @@ export function WantForm({
       <ThemedText type="title" style={styles.headerTitle}>
         Want — Add Chemical
       </ThemedText>
+
+      <View style={styles.quickNavRow}>
+        <TouchableOpacity style={styles.quickNavBtn} onPress={() => router.push('/(tabs)')}>
+          <ThemedText style={styles.quickNavText}>View inventory</ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.quickNavBtnSecondary} onPress={() => router.push('/(tabs)/stockOut')}>
+          <ThemedText style={styles.quickNavTextSecondary}>Stock out</ThemedText>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.field}>
         <ThemedText style={styles.label}>Chemical name</ThemedText>
@@ -122,7 +134,7 @@ export function WantForm({
           <TouchableOpacity
             onPress={() => setShowEndPicker(true)}
             style={[styles.input, styles.dateInput]}>
-              <Text style={{ color: '#000' }}>{endDate ? formatDate(endDate) : 'Pick date'}</Text>
+            <Text style={{ color: '#000' }}>{endDate ? formatDate(endDate) : 'Pick date'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -278,6 +290,36 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: '#49d137',
     marginBottom: 12,
+  },
+  quickNavRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+    flexWrap: 'wrap',
+  },
+  quickNavBtn: {
+    backgroundColor: '#49d137',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  quickNavText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  quickNavBtnSecondary: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#49d137',
+  },
+  quickNavTextSecondary: {
+    color: '#49d137',
+    fontWeight: '600',
+    fontSize: 12,
   },
   field: {
     marginBottom: 12,

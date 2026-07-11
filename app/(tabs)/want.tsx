@@ -8,6 +8,7 @@ import {
 
 import { WantForm } from '@/components/want-form';
 import { useWant } from '@/context/want-context-supabase';
+import { useRouter } from 'expo-router';
 
 type WantItem = {
   id: string;
@@ -19,6 +20,7 @@ type WantItem = {
 
 export default function WantScreen() {
   const { items, addItem, updateItem, deleteItem, setItems } = useWant();
+  const router = useRouter();
 
   const [chemicalName, setChemicalName] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -40,7 +42,7 @@ export default function WantScreen() {
     const iso = date.toISOString().slice(0, 10);
     setStartDate(iso);
     setStartDateObj(date);
-    
+
     if (endDateObj && !validateDateRange(date, endDateObj)) {
       Alert.alert('Invalid Date Range', 'Start date must be before or equal to end date.');
     }
@@ -50,7 +52,7 @@ export default function WantScreen() {
     const iso = date.toISOString().slice(0, 10);
     setEndDate(iso);
     setEndDateObj(date);
-    
+
     if (startDateObj && !validateDateRange(startDateObj, date)) {
       Alert.alert('Invalid Date Range', 'End date must be after or equal to start date.');
     }
@@ -100,15 +102,15 @@ export default function WantScreen() {
       Alert.alert('Validation', 'Please choose start and end dates');
       return;
     }
-    
+
     const startNormalized = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), startDateObj.getDate());
     const endNormalized = new Date(endDateObj.getFullYear(), endDateObj.getMonth(), endDateObj.getDate());
-    
+
     if (startNormalized.getTime() > endNormalized.getTime()) {
       Alert.alert('Validation', 'Start date must be before or equal to end date');
       return;
     }
-    
+
     if (!totalStock.trim() || !/^[0-9]+$/.test(totalStock)) {
       Alert.alert('Validation', 'Total stock must be a valid number');
       return;
@@ -116,47 +118,30 @@ export default function WantScreen() {
 
     try {
       const trimmedName = chemicalName.trim();
-      const trimmedTotal = parseInt(totalStock.trim());
+      const trimmedTotal = parseInt(totalStock.trim(), 10);
+      const payload = {
+        chemicalName: trimmedName,
+        startDate,
+        endDate,
+        totalStock: trimmedTotal.toString(),
+        unit: 'kg',
+      };
 
       if (editingId) {
-        const { error } = await supabase
-          .from('want')
-          .update({
-            chemical_name: trimmedName,
-            start_date: startDate,
-            end_date: endDate,
-            total_stock: trimmedTotal,
-            unit: 'kg',
-          })
-          .eq('id', editingId)
-          .eq('user_id', user.id);
-
-        if (error) throw error;
+        await updateItem(editingId, payload);
         Alert.alert('Success', 'Chemical updated successfully!');
       } else {
-        const { error } = await supabase
-          .from('want')
-          .insert({
-            user_id: user.id,
-            chemical_name: trimmedName,
-            start_date: startDate,
-            end_date: endDate,
-            total_stock: trimmedTotal,
-            unit: 'kg',
-          });
-
-        if (error) throw error;
+        await addItem(payload);
         Alert.alert('Success', 'Chemical added successfully!');
       }
 
       resetForm();
-      // Refresh context list
-      // You can call a refresh function from useWant if available
+      router.replace('/(tabs)');
     } catch (error: any) {
       console.error('Add/Update Error:', error);
       Alert.alert('Error', error.message || 'Failed to save to database');
     }
-  }, [chemicalName, startDate, endDate, startDateObj, endDateObj, totalStock, editingId, resetForm]);
+  }, [chemicalName, startDate, endDate, startDateObj, endDateObj, totalStock, editingId, resetForm, addItem, updateItem, router]);
 
   const formatDate = useCallback((d?: string) => {
     if (!d) return '';

@@ -6,40 +6,43 @@
 import { useAuth } from '@/context/AuthContext';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 export default function ProfileScreen() {
-  const { user, logout, loading } = useAuth();
-  const [isLogggingOut, setIsLoggingOut] = useState(false);
+  const { user, signOut, loading } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
     Alert.alert('Logout', 'Do you want to logout?', [
       {
         text: 'Cancel',
-        onPress: () => {},
+        onPress: () => { },
         style: 'cancel',
       },
       {
         text: 'Logout',
+        style: 'destructive',
         onPress: async () => {
           setIsLoggingOut(true);
+
           try {
-            await logout();
-            // Redirect happens automatically via useAuth listener
-          } catch (error) {
-            Alert.alert('Error', 'Could not logout');
+            await signOut();
+            // Redirect will be handled by Auth listener automatically
+          } catch (error: any) {
+            console.error('Logout error:', error);
+            Alert.alert('Error', error.message || 'Could not logout');
+          } finally {
             setIsLoggingOut(false);
           }
         },
-        style: 'destructive',
       },
     ]);
   };
@@ -62,8 +65,8 @@ export default function ProfileScreen() {
     .slice(0, 2);
 
   // Get account creation date
-  const createdAt = user?.metadata?.creation_time
-    ? new Date(user.metadata.creation_time).toLocaleDateString()
+  const createdAt = user?.created_at
+    ? new Date(user.created_at).toLocaleDateString()
     : 'Unknown';
 
   return (
@@ -131,15 +134,15 @@ export default function ProfileScreen() {
 
         {/* Logout Button */}
         <TouchableOpacity
-          style={[styles.logoutBtn, isLogggingOut && styles.logoutBtnDisabled]}
+          style={[styles.logoutBtn, isLoggingOut && styles.logoutBtnDisabled]}
           onPress={handleLogout}
-          disabled={isLogggingOut}
+          disabled={isLoggingOut}
         >
-          {isLogggingOut ? (
+          {isLoggingOut ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <>
-              <Text style={styles.logoutIcon}>🚪</Text>
+              <Text style={styles.logoutIcon}></Text>
               <Text style={styles.logoutText}>Logout</Text>
             </>
           )}
@@ -149,7 +152,9 @@ export default function ProfileScreen() {
         <View style={styles.helpSection}>
           <Text style={styles.helpTitle}>📞 Need Help?</Text>
           <Text style={styles.helpText}>
-            For any issues, please contact us or check app settings.
+            For any issues or support,{'\n'}
+            Contact Admin{'\n'}
+            Email: satheeshkanna521@gmail.com{'\n'}
           </Text>
         </View>
       </ScrollView>

@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         console.log('🔍 Checking existing session...');
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         if (session?.user) {
           console.log('✅ Session found, fetching profile...');
           const { data: profileData, error: profileError } = await supabase
@@ -53,17 +53,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .select('*')
             .eq('id', session.user.id)
             .maybeSingle();
-          
+
           const profile = profileData as User | null;
-          
+
           if (profile && !profileError) {
             console.log('✅ Profile loaded:', profile.email);
             setUser(profile);
           } else {
             console.warn('⚠️ Profile not found, creating basic user');
             setUser(createBasicUser(
-              session.user.id, 
-              session.user.email || '', 
+              session.user.id,
+              session.user.email || '',
               (session.user.user_metadata as any)?.full_name
             ));
           }
@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔄 Auth state changed:', event);
-        
+
         if (session?.user) {
           try {
             const { data: profileData, error: profileError } = await supabase
@@ -90,17 +90,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .select('*')
               .eq('id', session.user.id)
               .maybeSingle();
-            
+
             const profile = profileData as User | null;
-            
+
             if (profile && !profileError) {
               console.log('✅ Profile loaded in auth change:', profile.email);
               setUser(profile);
             } else {
               console.warn('⚠️ Profile not found in auth change');
               setUser(createBasicUser(
-                session.user.id, 
-                session.user.email || '', 
+                session.user.id,
+                session.user.email || '',
                 (session.user.user_metadata as any)?.full_name
               ));
             }
@@ -125,16 +125,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.log('🔐 Login attempt:', email);
     setLoading(true);
     setError(null);
-    
+
     try {
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      console.log('📊 Auth response:', { 
-        userExists: !!data?.user, 
-        hasError: !!authError 
+      console.log('📊 Auth response:', {
+        userExists: !!data?.user,
+        hasError: !!authError
       });
 
       if (authError) {
@@ -145,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (data.user) {
         console.log('✅ User authenticated, fetching profile...');
-        
+
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
@@ -154,9 +154,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const profile = profileData as User | null;
 
-        console.log('📋 Profile fetch:', { 
-          found: !!profile, 
-          hasError: !!profileError 
+        console.log('📋 Profile fetch:', {
+          found: !!profile,
+          hasError: !!profileError
         });
 
         if (profile && !profileError) {
@@ -165,8 +165,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           console.warn('⚠️ Profile not found, using basic user');
           setUser(createBasicUser(
-            data.user.id, 
-            data.user.email || '', 
+            data.user.id,
+            data.user.email || '',
             (data.user.user_metadata as any)?.full_name
           ));
         }
@@ -184,7 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.log('📝 Registration attempt:', email);
     setLoading(true);
     setError(null);
-    
+
     try {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
@@ -204,7 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (authData.user) {
         console.log('✅ User created, creating profile...');
-        
+
         const { error: profileError } = await supabase
           .from('profiles')
           .insert([{
@@ -214,7 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             role: 'user',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-          }]as any);
+          }] as any);
 
         if (profileError) {
           console.error('❌ Profile creation error:', profileError);
@@ -235,13 +235,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     console.log('👋 Signing out...');
     setError(null);
-    
+
     try {
       const { error: authError } = await supabase.auth.signOut();
       if (authError) throw authError;
+
       console.log('✅ Signed out successfully');
+      setUser(null);
     } catch (err: any) {
       console.error('❌ Sign out error:', err);
+      setError(err.message || 'Sign out failed');
       throw err;
     }
   };

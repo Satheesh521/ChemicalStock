@@ -3,6 +3,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -35,11 +36,21 @@ interface Chemical {
 
 export default function ChemicalListScreen() {
   const { user } = useAuth();
+  const router = useRouter();
+  const { filter } = useLocalSearchParams();
   const [chemicals, setChemicals] = useState<Chemical[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'low' | 'out'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'low' | 'out'>(
+    filter === 'low' || filter === 'out' ? (filter as 'all' | 'low' | 'out') : 'all'
+  );
+
+  useEffect(() => {
+    if (filter === 'low' || filter === 'out' || filter === 'all') {
+      setFilterStatus(filter as 'all' | 'low' | 'out');
+    }
+  }, [filter]);
 
   useEffect(() => {
     loadChemicals();
@@ -48,7 +59,7 @@ export default function ChemicalListScreen() {
   const loadChemicals = async () => {
     try {
       setLoading(true);
-      
+
       if (!user) {
         Alert.alert('Error', 'Please login to view chemicals');
         return;
@@ -86,10 +97,10 @@ export default function ChemicalListScreen() {
       const processedData = (data || []).map((chem: any) => {
         const currentStock = parseFloat(chem.current_stock) || 0;
         const minThreshold = parseFloat(chem.min_threshold) || 0;
-        
+
         // Calculate stock percentage (based on min_threshold * 3 as max)
         const maxStock = minThreshold * 3 || 1;
-        const stockPercentage = currentStock > 0 
+        const stockPercentage = currentStock > 0
           ? Math.min(Math.round((currentStock / maxStock) * 100), 100)
           : 0;
 
@@ -116,6 +127,11 @@ export default function ChemicalListScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     await loadChemicals();
+  };
+
+  const handleFilterPress = (nextFilter: 'all' | 'low' | 'out') => {
+    setFilterStatus(nextFilter);
+    router.setParams({ filter: nextFilter });
   };
 
   // Filter chemicals
@@ -171,8 +187,8 @@ export default function ChemicalListScreen() {
                     item.current_stock <= 0
                       ? '#dc3545'
                       : item.current_stock <= item.min_threshold
-                      ? '#ffc107'
-                      : '#28a745',
+                        ? '#ffc107'
+                        : '#28a745',
                 },
               ]}
             />
@@ -246,7 +262,7 @@ export default function ChemicalListScreen() {
               styles.filterTab,
               filterStatus === filter.key && styles.activeFilterTab,
             ]}
-            onPress={() => setFilterStatus(filter.key as any)}>
+            onPress={() => handleFilterPress(filter.key as 'all' | 'low' | 'out')}>
             <ThemedText
               style={[
                 styles.filterTabText,
@@ -288,10 +304,22 @@ export default function ChemicalListScreen() {
           <View style={styles.emptyContainer}>
             <Ionicons name="flask-outline" size={64} color="#6c757d" />
             <ThemedText style={styles.emptyText}>
-              {searchQuery
-                ? 'No chemicals found'
-                : 'No chemicals available\nTap + to add one'}
+              {searchQuery ? 'No chemicals found' : 'No chemicals available'}
             </ThemedText>
+            {!searchQuery && (
+              <View style={styles.emptyActions}>
+                <TouchableOpacity
+                  style={styles.primaryAction}
+                  onPress={() => router.push('/(tabs)/want')}>
+                  <ThemedText style={styles.primaryActionText}>Add Chemical</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.secondaryAction}
+                  onPress={() => router.push('/(tabs)/stockOut')}>
+                  <ThemedText style={styles.secondaryActionText}>Manage Stock Out</ThemedText>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         }
       />
@@ -479,5 +507,34 @@ const styles = StyleSheet.create({
     color: '#6c757d',
     marginTop: 16,
     textAlign: 'center',
+  },
+  emptyActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 12,
+    marginTop: 20,
+  },
+  primaryAction: {
+    backgroundColor: '#49d137',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  primaryActionText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  secondaryAction: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#49d137',
+  },
+  secondaryActionText: {
+    color: '#49d137',
+    fontWeight: '600',
   },
 });
