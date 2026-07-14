@@ -3,15 +3,15 @@ import { Picker } from '@react-native-picker/picker';
 import { CameraView, useCameraPermissions } from 'expo-camera'; // ✅ Updated import
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../../lib/supabase';
@@ -36,6 +36,7 @@ export default function QRDemo() {
   const [loading, setLoading] = useState(false);
   const [entryType, setEntryType] = useState<EntryType>('in');
   const [userId, setUserId] = useState<string>('demo-user');
+  const [savedEntries, setSavedEntries] = useState<any[]>([]);
 
   const [formData, setFormData] = useState<StockEntryData>({
     chemicalName: '',
@@ -54,6 +55,30 @@ export default function QRDemo() {
       requestPermission();
     }
   }, [permission]);
+
+  // Fetch saved entries on load and when entry type changes
+  useEffect(() => {
+    fetchSavedEntries();
+  }, [entryType]);
+
+  const fetchSavedEntries = async () => {
+    try {
+      const tableName = entryType === 'in' ? 'stock_in' : 'stock_out';
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching entries:', error);
+        return;
+      }
+
+      setSavedEntries(data || []);
+    } catch (error) {
+      console.error('Error fetching entries:', error);
+    }
+  };
 
   const handleBarcodeScanned = ({ data }: { data: string }) => {
     setShowScanner(false);
@@ -148,8 +173,8 @@ export default function QRDemo() {
         return;
       }
 
-      Alert.alert('Success ✅', `${entryType === 'in' ? 'Stock In' : 'Stock Out'} saved!`, 
-        [{ text: 'OK', onPress: clearForm }]);
+      Alert.alert('Success ✅', `${entryType === 'in' ? 'Stock In' : 'Stock Out'} saved!`,
+        [{ text: 'OK', onPress: () => { clearForm(); fetchSavedEntries(); } }]);
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
@@ -318,8 +343,8 @@ export default function QRDemo() {
             <TouchableOpacity style={styles.clearButton} onPress={clearForm}>
               <Text style={styles.clearButtonText}>Clear</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.saveButton, entryType === 'out' && styles.saveButtonOut]} 
+            <TouchableOpacity
+              style={[styles.saveButton, entryType === 'out' && styles.saveButtonOut]}
               onPress={handleSave}
               disabled={loading}
             >
@@ -331,13 +356,52 @@ export default function QRDemo() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Saved Entries Section */}
+        <View style={styles.savedEntriesSection}>
+          <Text style={styles.savedEntriesTitle}>
+            {entryType === 'in' ? '📥 Stock In Entries' : '📤 Stock Out Entries'} ({savedEntries.length})
+          </Text>
+          {savedEntries.length === 0 ? (
+            <Text style={styles.noEntriesText}>No entries yet</Text>
+          ) : (
+            savedEntries.map((entry) => (
+              <View key={entry.id} style={styles.entryCard}>
+                <View style={styles.entryHeader}>
+                  <Text style={styles.entryChemicalName}>{entry.chemical_name}</Text>
+                  <Text style={styles.entryDate}>
+                    {entryType === 'in' ? entry.expiry_date : entry.date_out}
+                  </Text>
+                </View>
+                <View style={styles.entryDetails}>
+                  <Text style={styles.entryDetail}>
+                    <Text style={styles.detailLabel}>Batch:</Text> {entry.batch_number || entry.mc_no}
+                  </Text>
+                  <Text style={styles.entryDetail}>
+                    <Text style={styles.detailLabel}>Qty:</Text> {entry.quantity} {entry.unit}
+                  </Text>
+                  {entryType === 'in' && entry.vendor && (
+                    <Text style={styles.entryDetail}>
+                      <Text style={styles.detailLabel}>Vendor:</Text> {entry.vendor}
+                    </Text>
+                  )}
+                  {entryType === 'in' && entry.location && (
+                    <Text style={styles.entryDetail}>
+                      <Text style={styles.detailLabel}>Location:</Text> {entry.location}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            ))
+          )}
+        </View>
       </ScrollView>
 
       {/* ✅ Updated QR Scanner Modal with CameraView */}
       <Modal visible={showScanner} animationType="slide">
         <View style={styles.scannerContainer}>
           <CameraView
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             facing="back"
             barcodeScannerSettings={{
               barcodeTypes: ["qr"],
@@ -397,4 +461,14 @@ const styles = StyleSheet.create({
   permissionText: { fontSize: 18, textAlign: 'center', marginTop: 100 },
   permissionButton: { backgroundColor: '#007AFF', margin: 20, padding: 16, borderRadius: 8, alignItems: 'center' },
   permissionButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  savedEntriesSection: { backgroundColor: '#fff', borderRadius: 12, padding: 20, marginTop: 20 },
+  savedEntriesTitle: { fontSize: 18, fontWeight: '600', marginBottom: 16, color: '#000' },
+  noEntriesText: { fontSize: 14, color: '#6c757d', textAlign: 'center', paddingVertical: 20 },
+  entryCard: { backgroundColor: '#f8f9fa', borderRadius: 8, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#dee2e6' },
+  entryHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  entryChemicalName: { fontSize: 16, fontWeight: '600', color: '#000', flex: 1 },
+  entryDate: { fontSize: 12, color: '#6c757d' },
+  entryDetails: { gap: 4 },
+  entryDetail: { fontSize: 14, color: '#333' },
+  detailLabel: { fontWeight: '600', color: '#495057' },
 });

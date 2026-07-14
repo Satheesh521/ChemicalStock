@@ -4,20 +4,22 @@
  */
 
 import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 export default function ProfileScreen() {
   const { user, signOut, loading } = useAuth();
+  const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
@@ -35,7 +37,8 @@ export default function ProfileScreen() {
 
           try {
             await signOut();
-            // Redirect will be handled by Auth listener automatically
+            // Navigate to login screen
+            router.replace('/login');
           } catch (error: any) {
             console.error('Logout error:', error);
             Alert.alert('Error', error.message || 'Could not logout');
