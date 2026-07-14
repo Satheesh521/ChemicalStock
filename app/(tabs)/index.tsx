@@ -306,20 +306,6 @@ export default function ChemicalListScreen() {
             <ThemedText style={styles.emptyText}>
               {searchQuery ? 'No chemicals found' : 'No chemicals available'}
             </ThemedText>
-            {!searchQuery && (
-              <View style={styles.emptyActions}>
-                <TouchableOpacity
-                  style={styles.primaryAction}
-                  onPress={() => router.push('/(tabs)/want')}>
-                  <ThemedText style={styles.primaryActionText}>Add Chemical</ThemedText>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.secondaryAction}
-                  onPress={() => router.push('/(tabs)/stockOut')}>
-                  <ThemedText style={styles.secondaryActionText}>Manage Stock Out</ThemedText>
-                </TouchableOpacity>
-              </View>
-            )}
           </View>
         }
       />
@@ -507,34 +493,5 @@ const styles = StyleSheet.create({
     color: '#6c757d',
     marginTop: 16,
     textAlign: 'center',
-  },
-  emptyActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 12,
-    marginTop: 20,
-  },
-  primaryAction: {
-    backgroundColor: '#49d137',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  primaryActionText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  secondaryAction: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#49d137',
-  },
-  secondaryActionText: {
-    color: '#49d137',
-    fontWeight: '600',
   },
 });

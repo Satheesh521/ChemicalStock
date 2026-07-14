@@ -16,76 +16,78 @@ export default function TabLayout() {
         tabBarButton: HapticTab,
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
+      <Tabs.Screen 
+        name="index" 
+        options={{ 
+          title: 'Home', 
           tabBarIcon: ({ color }: { color: string }) => (
             <IconSymbol size={28} name="house.fill" color={color} />
-          )
-        }}
+          ) 
+        }} 
       />
-      <Tabs.Screen
-        name="want"
-        options={{
-          title: 'Add Chemical',
+      <Tabs.Screen 
+        name="want" 
+        options={{ 
+          title: 'Add Chemical', 
           tabBarIcon: ({ color }: { color: string }) => (
             <IconSymbol size={28} name="plus.app" color={color} />
-          )
-        }}
+          ) 
+        }} 
       />
-      <Tabs.Screen
-        name="want-view"
-        options={{
-          title: 'All View',
+      <Tabs.Screen 
+        name="want-view" 
+        options={{ 
+          title: 'All View', 
           tabBarIcon: ({ color }: { color: string }) => (
             <IconSymbol size={28} name="list.bullet" color={color} />
-          )
-        }}
+          ) 
+        }} 
       />
-
-      <Tabs.Screen
-        name="stockOut"
-        options={{
-          title: 'Stock Out',
-          tabBarIcon: ({ color }: { color: string }) => (
-            <IconSymbol size={28} name="arrow.down.circle" color={color} />
-          )
-        }}
-      />
-
-      <Tabs.Screen
-        name="qr-demo"
-        options={{
-          title: 'Stock Entry',
+      
+      <Tabs.Screen 
+        name="qr-demo" 
+        options={{ 
+          title: 'Stock Entry', 
           tabBarIcon: ({ color }: { color: string }) => (
             <IconSymbol size={28} name="camera.viewfinder" color={color} />
-          )
-        }}
+          ) 
+        }} 
       />
-
-      <Tabs.Screen
-        name="alert"
-        options={{
+      <Tabs.Screen 
+        name="profile" 
+        options={{ 
+          title: 'Profile', 
+          tabBarIcon: ({ color }: { color: string }) => (
+            <IconSymbol size={28} name="person.circle.fill" color={color} />
+          ) 
+        }} 
+      />
+      
+      
+     
+      <Tabs.Screen 
+        name="stockOut" 
+        options={{ 
+          title: 'Stock Out',
+          tabBarIcon: ({ color }: { color: string }) => (
+            <IconSymbol size={28} name="arrow.down.circle.fill" color={color} />
+          )
+        }} 
+      />
+      
+      <Tabs.Screen 
+        name="alert" 
+        options={{ 
           title: 'Alerts',
           tabBarIcon: ({ color }: { color: string }) => (
             <IconSymbol size={28} name="bell.fill" color={color} />
           )
-        }}
+        }} 
       />
-
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color }: { color: string }) => (
-            <IconSymbol size={28} name="person.circle.fill" color={color} />
-          )
-        }}
-      />
-
-
+      
       <Tabs.Screen name="explore" options={{ href: null }} />
     </Tabs>
   );
 }
+
+// mr.sk
