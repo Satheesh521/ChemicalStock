@@ -5,10 +5,10 @@
  */
 
 import { requireAuth, supabase } from './supabaseClient';
+import { ChemicalServiceError } from './types';
 import type {
     Alert,
     Chemical,
-    ChemicalServiceError,
     ChemicalWithHistory,
     CreateChemicalInput,
     CreateStockInInput,

@@ -1,9 +1,9 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '@/config/constants';
 
 // Create axios instance with default configuration
-const api: AxiosInstance = axios.create({
+const api: any = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
@@ -13,7 +13,7 @@ const api: AxiosInstance = axios.create({
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
-  async (config: AxiosRequestConfig) => {
+  async (config: any) => {
     const token = await AsyncStorage.getItem('auth_token');
     if (token) {
       config.headers = {
@@ -23,17 +23,17 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
+  (error: any) => {
     return Promise.reject(error);
   }
 );
 
 // Response interceptor to handle token refresh
 api.interceptors.response.use(
-  (response: AxiosResponse) => {
+  (response: any) => {
     return response;
   },
-  async (error) => {
+  async (error: any) => {
     const originalRequest = error.config;
     
     // Handle 401 Unauthorized

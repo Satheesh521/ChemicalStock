@@ -40,16 +40,16 @@ class CrashReporter {
     }
 
     // JavaScript error handler
-    const originalHandler = Error.getStackTrace;
-    Error.getStackTrace = () => {
+    const originalHandler = (Error as any).getStackTrace;
+    (Error as any).getStackTrace = () => {
       const error = new Error('App crashed');
       this.reportCrash(error);
-      return originalHandler();
+      return originalHandler ? originalHandler() : '';
     };
 
     // Unhandled promise rejection
-    const originalRejectionHandler = global.PromiseRejectionEvent;
-    global.PromiseRejectionEvent = (event) => {
+    const originalRejectionHandler = (globalThis as any).PromiseRejectionEvent;
+    (globalThis as any).PromiseRejectionEvent = (event: any) => {
       this.reportCrash(new Error(`Unhandled promise rejection: ${event.reason}`));
     };
   }
@@ -85,12 +85,13 @@ class CrashReporter {
 
   private getMemoryUsage(): string {
     try {
-      if (Platform.OS === 'android' && 'performance' in global) {
-        return (global as any).performance.memory?.usedJSHeapSize || 'unknown';
+      if (Platform.OS === 'android' && 'performance' in globalThis) {
+        return (globalThis as any).performance.memory?.usedJSHeapSize || 'unknown';
       }
     } catch {
       return 'unknown';
     }
+    return 'unknown';
   }
 
   private getStorageUsage(): string {

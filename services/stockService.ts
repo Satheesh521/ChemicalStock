@@ -3,10 +3,18 @@
  * Handle stock IN/OUT transactions
  */
 
-import type { Database } from '../lib/supabase';
 import { supabase } from '../lib/supabase';
-import { getChemicalById, updateChemical } from './chemicalService';
-type StockTransaction = Database['public']['Tables']['stock_outs']['Row'];
+import { chemicalService } from './chemicalService';
+
+type StockTransaction = {
+  id: string;
+  chemical_id: string;
+  type: 'IN' | 'OUT';
+  quantity: number;
+  reason?: string;
+  performed_by?: string;
+  created_at: string;
+};
 
 // Add stock IN transaction
 export const addStockIn = async (
@@ -17,7 +25,8 @@ export const addStockIn = async (
 ): Promise<StockTransaction> => {
   try {
     // Fetch current chemical
-    const chemical = await getChemicalById(chemicalId);
+    const chemicals = await chemicalService.getChemicals();
+    const chemical = chemicals.find((c: any) => c.id === chemicalId);
     if (!chemical) throw new Error('Chemical not found');
 
     // Insert transaction
@@ -38,8 +47,10 @@ export const addStockIn = async (
     if (error) throw error;
 
     // Update chemical quantity
-    await updateChemical(chemicalId, {
-      quantity: chemical.quantity + quantity,
+    await chemicalService.updateChemical(chemicalId, {
+      name: chemical.name,
+      quantity: chemical.current_stock + quantity,
+      unit: chemical.unit,
     });
 
     return data;
@@ -58,13 +69,14 @@ export const addStockOut = async (
 ): Promise<StockTransaction> => {
   try {
     // Fetch current chemical
-    const chemical = await getChemicalById(chemicalId);
+    const chemicals = await chemicalService.getChemicals();
+    const chemical = chemicals.find((c: any) => c.id === chemicalId);
     if (!chemical) throw new Error('Chemical not found');
 
     // Check if sufficient stock
-    if (chemical.quantity < quantity) {
+    if (chemical.current_stock < quantity) {
       throw new Error(
-        `अपर्याप्त स्टॉक! उपलब्ध: ${chemical.quantity} ${chemical.unit}`
+        `अपर्याप्त स्टॉक! उपलब्ध: ${chemical.current_stock} ${chemical.unit}`
       );
     }
 
@@ -86,8 +98,10 @@ export const addStockOut = async (
     if (error) throw error;
 
     // Update chemical quantity
-    await updateChemical(chemicalId, {
-      quantity: chemical.quantity - quantity,
+    await chemicalService.updateChemical(chemicalId, {
+      name: chemical.name,
+      quantity: chemical.current_stock - quantity,
+      unit: chemical.unit,
     });
 
     return data;

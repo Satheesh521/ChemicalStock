@@ -99,7 +99,7 @@ interface ScreenState {
 /**
  * Safe property access with fallback
  */
-function safeGet(obj, prop, defaultValue = null) {
+function safeGet(obj: any, prop: string, defaultValue: any = null): any {
   try {
     if (!obj || typeof obj !== 'object') return defaultValue;
     const value = obj[prop];
@@ -112,7 +112,7 @@ function safeGet(obj, prop, defaultValue = null) {
 /**
  * Safe string lowercase with null check
  */
-function safeLowercase(str) {
+function safeLowercase(str: any) {
   if (!str || typeof str !== 'string') return '';
   return str.toLowerCase();
 }

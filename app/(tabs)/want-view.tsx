@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   StyleSheet,
@@ -6,10 +6,47 @@ import {
 
 import { ThemedView } from '@/components/themed-view';
 import { WantView } from '@/components/want-view';
-import { useWant } from '@/context/want-context-supabase';
+import { supabase } from '@/lib/supabase';
 
 export default function WantViewScreen() {
-  const { items, deleteItem, stockOutItems, deleteStockOut } = useWant();
+  const [items, setItems] = useState<any[]>([]);
+  const [stockOutItems, setStockOutItems] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [chemicalsData, stockOutData] = await Promise.all([
+        supabase.from('chemicals').select('*').eq('is_active', true),
+        supabase.from('stock_out').select('*')
+      ]);
+
+      if (chemicalsData.data) setItems(chemicalsData.data);
+      if (stockOutData.data) setStockOutItems(stockOutData.data);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+  };
+
+  const deleteItem = async (id: string) => {
+    try {
+      await supabase.from('chemicals').delete().eq('id', id);
+      setItems(prev => prev.filter(item => item.id !== id));
+    } catch (error) {
+      console.error('Error deleting item:', error);
+    }
+  };
+
+  const deleteStockOut = async (id: string) => {
+    try {
+      await supabase.from('stock_out').delete().eq('id', id);
+      setStockOutItems(prev => prev.filter(item => item.id !== id));
+    } catch (error) {
+      console.error('Error deleting stock out:', error);
+    }
+  };
 
   const formatDate = useCallback((d?: string) => {
     if (!d) return '';

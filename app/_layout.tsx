@@ -9,7 +9,6 @@ import { ActivityIndicator, View } from 'react-native';
 import 'react-native-url-polyfill/auto';
 import { ChemicalStockErrorBoundary } from '../components/ChemicalStockErrorBoundary';
 import { AuthProvider } from '../context/AuthContext';
-import { WantProvider } from '../context/want-context-supabase';
 import '../lib/supabase';
 
 // ✅ STEP 2: Polyfill code AFTER all imports
@@ -53,9 +52,7 @@ export default function RootLayout() {
   return (
     <ChemicalStockErrorBoundary>
       <AuthProvider>
-        <WantProvider>
-          <Stack screenOptions={{ headerShown: false }} />
-        </WantProvider>
+        <Stack screenOptions={{ headerShown: false }} />
       </AuthProvider>
     </ChemicalStockErrorBoundary>
   );

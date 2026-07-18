@@ -1,22 +1,18 @@
 import { supabase } from '@/lib/supabase';
 
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import {
-
   Alert,
 
   KeyboardAvoidingView,
 
   Platform,
-
 } from 'react-native';
 
 
 
-import { WantForm } from '@/components/want-form';\nimport { useLocalSearchParams } from 'expo-router';
-
-import { useWant } from '@/context/want-context-supabase';
+import { WantForm } from '@/components/want-form';
 
 
 
@@ -38,7 +34,80 @@ type WantItem = {
 
 export default function WantScreen() {
 
-  const { items, addItem, updateItem, deleteItem, setItems } = useWant();
+  const [items, setItems] = useState<WantItem[]>([]);
+
+  useEffect(() => {
+    fetchChemicals();
+  }, []);
+
+  const fetchChemicals = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('chemicals')
+        .select('*')
+        .eq('is_active', true);
+      if (data) {
+        const mappedData = data.map((item: any) => ({
+          id: item.id,
+          chemicalName: item.name,
+          startDate: item.start_date,
+          endDate: item.end_date,
+          totalStock: item.current_stock.toString(),
+        }));
+        setItems(mappedData);
+      }
+    } catch (error) {
+      console.error('Error fetching chemicals:', error);
+    }
+  };
+
+  const addItem = async (item: WantItem) => {
+    try {
+      const { error } = await supabase.from('chemicals').insert([{
+        name: item.chemicalName,
+        start_date: item.startDate,
+        end_date: item.endDate,
+        current_stock: parseFloat(item.totalStock),
+        total_stock: parseFloat(item.totalStock),
+        unit: 'kg',
+        min_threshold: 25,
+        is_active: true,
+      }]);
+      if (!error) {
+        fetchChemicals();
+      }
+    } catch (error) {
+      console.error('Error adding item:', error);
+    }
+  };
+
+  const updateItem = async (id: string, item: WantItem) => {
+    try {
+      const { error } = await supabase.from('chemicals').update({
+        name: item.chemicalName,
+        start_date: item.startDate,
+        end_date: item.endDate,
+        current_stock: parseFloat(item.totalStock),
+        total_stock: parseFloat(item.totalStock),
+      }).eq('id', id);
+      if (!error) {
+        fetchChemicals();
+      }
+    } catch (error) {
+      console.error('Error updating item:', error);
+    }
+  };
+
+  const deleteItem = async (id: string) => {
+    try {
+      const { error } = await supabase.from('chemicals').delete().eq('id', id);
+      if (!error) {
+        setItems(prev => prev.filter(item => item.id !== id));
+      }
+    } catch (error) {
+      console.error('Error deleting item:', error);
+    }
+  };
 
 
 

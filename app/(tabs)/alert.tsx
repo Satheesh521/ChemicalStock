@@ -9,11 +9,31 @@ import {
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useWant } from '@/context/want-context-supabase';
+import { supabase } from '@/lib/supabase';
+import { useEffect } from 'react';
 
 export default function AlertScreen() {
-  const { items, stockOutItems } = useWant();
+  const [items, setItems] = useState<any[]>([]);
+  const [stockOutItems, setStockOutItems] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [chemicalsData, stockOutData] = await Promise.all([
+        supabase.from('chemicals').select('*').eq('is_active', true),
+        supabase.from('stock_out').select('*')
+      ]);
+
+      if (chemicalsData.data) setItems(chemicalsData.data);
+      if (stockOutData.data) setStockOutItems(stockOutData.data);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+  };
 
   // Calculate alerts for stock below 25kg threshold
   const alerts = useMemo(() => {

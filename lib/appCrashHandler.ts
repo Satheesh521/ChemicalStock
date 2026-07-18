@@ -41,8 +41,8 @@ class AppCrashHandler {
     }
 
     // Handle unhandled promise rejections
-    if (typeof global !== 'undefined') {
-      global.onUnhandledRejection = (event) => {
+    if (typeof globalThis !== 'undefined') {
+      (globalThis as any).onUnhandledRejection = (event: any) => {
         this.handleCrash(new Error(`Unhandled promise rejection: ${event.reason}`));
       };
     }
@@ -130,12 +130,13 @@ ${crashInfo.stack || 'No stack trace available'}
 
   private getMemoryUsage(): string {
     try {
-      if (Platform.OS === 'android' && 'performance' in global) {
-        return (global as any).performance.memory?.usedJSHeapSize || 'unknown';
+      if (Platform.OS === 'android' && 'performance' in globalThis) {
+        return (globalThis as any).performance.memory?.usedJSHeapSize || 'unknown';
       }
     } catch {
       return 'unknown';
     }
+    return 'unknown';
   }
 
   private async sendCrashReport(crashInfo: CrashInfo): Promise<void> {

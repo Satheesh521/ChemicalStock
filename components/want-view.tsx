@@ -10,7 +10,13 @@ import {
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import type { WantItem } from '@/components/want-form';
-import type { StockOutItem } from '@/context/want-context-supabase';
+
+type StockOutItem = {
+  id: string;
+  chemicalName: string;
+  stockValue: string;
+  stockUnit: string;
+};
 
 export type WantViewProps = {
   items: WantItem[];
@@ -92,7 +98,7 @@ export function WantView({
   };
 
   // Convert unit to kg for calculations
-  const convertUnitToKg = (value: number, unit: 'kg' | 'g' | 'mg'): number => {
+  const convertUnitToKg = (value: number, unit: string): number => {
     if (unit === 'kg') return value;
     if (unit === 'g') return value / 1000;
     if (unit === 'mg') return value / 1000000;

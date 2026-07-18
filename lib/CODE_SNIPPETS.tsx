@@ -4,6 +4,26 @@
  * Each snippet is self-contained and production-ready
  */
 
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  FlatList,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import { useChemicalData } from '@/lib/useChemicalData';
+import type {
+  Chemical,
+  StockIn,
+  StockOut,
+  CreateStockInInput,
+  CreateStockOutInput,
+} from '@/lib/types';
+
 // ============================================================================
 // SNIPPET 1: SIMPLE CHEMICAL LIST COMPONENT
 // ============================================================================
@@ -405,10 +425,11 @@ export function TransactionHistory({
 }: TransactionHistoryProps) {
   const [selectedType, setSelectedType] = useState<'in' | 'out'>('in');
 
-  const displayedHistory =
+  const displayedHistory = (
     selectedType === 'in'
       ? stockInHistory.map(item => ({ ...item, type: 'in' as const }))
-      : stockOutHistory.map(item => ({ ...item, type: 'out' as const }));
+      : stockOutHistory.map(item => ({ ...item, type: 'out' as const }))
+  ) as any[];
 
   if (loading) {
     return <ActivityIndicator size="large" color="#007AFF" />;

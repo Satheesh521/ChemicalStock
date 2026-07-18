@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Alert, ActivityIndicator } from 'react-native';
-import { supabase, Database } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Types

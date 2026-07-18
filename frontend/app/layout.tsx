@@ -3,7 +3,7 @@ import { Redirect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, ActivityIndicator } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
-import { AuthContextType, User } from '@/types/auth';
+import { AuthContextType, User } from '../types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 

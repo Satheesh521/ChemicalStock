@@ -1,8 +1,20 @@
-import type { Database } from '../lib/supabase';
 import { supabase } from '../lib/supabase';
 
-export type User = Database['public']['Tables']['profiles']['Row'];
-type ProfileInsert = Database['public']['Tables']['profiles']['Insert'];
+export type User = {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type ProfileInsert = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+};
 
 export interface AuthState {
   user: User | null;

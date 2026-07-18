@@ -355,7 +355,7 @@ export function Dashboard() {
   return (
     <View>
       <Button title="Refresh" onPress={handleRefresh} />
-      {/* Content */}
+      {/* Content * /}
     </View>
   );
 }
