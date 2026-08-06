@@ -35,7 +35,13 @@ interface QRData {
   notes?: string;
 }
 
+import { useAuth } from '../hooks/useAuth';
+import { CreateStockInInput } from '../lib/types';
+import { chemicalService } from '../services/chemicalService';
+import { stockInService } from '../services/stockInService';
+
 export default function StockEntryScreen() {
+  const { user } = useAuth();
   const [formData, setFormData] = useState<StockEntryData>({
     chemicalName: '',
     batchNumber: '',
@@ -143,19 +149,19 @@ export default function StockEntryScreen() {
     const result: QRData = {};
     // FIXED: Use 'in' operator to check for property existence, not truthiness
     if ('chemicalName' in data && typeof data.chemicalName === 'string') result.chemicalName = data.chemicalName.trim();
-    if ('batchNumber'  in data && typeof data.batchNumber  === 'string') result.batchNumber  = data.batchNumber.trim();
-    if ('quantity'     in data && typeof data.quantity     === 'string') result.quantity     = data.quantity.trim();
-    if ('unit'         in data && typeof data.unit         === 'string') result.unit         = data.unit.trim();
-    if ('date'         in data && typeof data.date         === 'string') result.date         = data.date.trim();
-    if ('vendor'       in data && typeof data.vendor       === 'string') result.vendor       = data.vendor.trim();
-    if ('location'     in data && typeof data.location     === 'string') result.location     = data.location.trim();
-    if ('notes'        in data && typeof data.notes        === 'string') result.notes        = data.notes.trim();
+    if ('batchNumber' in data && typeof data.batchNumber === 'string') result.batchNumber = data.batchNumber.trim();
+    if ('quantity' in data && typeof data.quantity === 'string') result.quantity = data.quantity.trim();
+    if ('unit' in data && typeof data.unit === 'string') result.unit = data.unit.trim();
+    if ('date' in data && typeof data.date === 'string') result.date = data.date.trim();
+    if ('vendor' in data && typeof data.vendor === 'string') result.vendor = data.vendor.trim();
+    if ('location' in data && typeof data.location === 'string') result.location = data.location.trim();
+    if ('notes' in data && typeof data.notes === 'string') result.notes = data.notes.trim();
     return result;
   };
 
   const updateFormWithQRData = (qrData: QRData) => {
     console.log('🔄 Updating Form with QR Data:', qrData); // Debug log
-    
+
     // FIXED: Force update all fields that exist in QR data, even if empty
     const newFormData = { ...formData };
     if (qrData.chemicalName !== undefined) newFormData.chemicalName = qrData.chemicalName;
@@ -166,10 +172,10 @@ export default function StockEntryScreen() {
     if (qrData.vendor !== undefined) newFormData.vendor = qrData.vendor;
     if (qrData.location !== undefined) newFormData.location = qrData.location;
     if (qrData.notes !== undefined) newFormData.notes = qrData.notes;
-    
+
     console.log('✅ New Form Data:', newFormData); // Debug log
     setFormData(newFormData);
-    
+
     // Force a re-render by triggering a state update
     setTimeout(() => {
       console.log('🔄 Forced form update check:', formData); // Debug log
@@ -207,9 +213,39 @@ export default function StockEntryScreen() {
 
   const handleSave = async () => {
     if (!validateForm()) return;
+    if (!user) {
+      Alert.alert('Error', 'Please login to save stock entry');
+      return;
+    }
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Find chemical by name to get its ID
+      const chemicals = await chemicalService.getChemicals();
+      let chemical = chemicals.find(c => c.name.toLowerCase() === formData.chemicalName.toLowerCase());
+
+      if (!chemical) {
+        // If chemical doesn't exist, create it first
+        chemical = await chemicalService.addChemical({
+          name: formData.chemicalName,
+          quantity: formData.quantity,
+          unit: formData.unit,
+        });
+      }
+
+      const stockInInput: CreateStockInInput = {
+        chemical_id: chemical.id,
+        quantity: parseFloat(formData.quantity),
+        unit: formData.unit,
+        supplier: formData.vendor,
+        batch_number: formData.batchNumber,
+        notes: formData.notes,
+        performed_by: user.id,
+        location: formData.location,
+        purchase_date: formData.date,
+      };
+
+      await stockInService.createStockIn(stockInInput);
+
       Alert.alert(
         '✅ Success',
         'Stock entry has been saved successfully!',
@@ -218,8 +254,9 @@ export default function StockEntryScreen() {
           { text: 'Add Another', style: 'default' },
         ]
       );
-    } catch (error) {
-      Alert.alert('❌ Error', 'Failed to save stock entry. Please try again.');
+    } catch (error: any) {
+      console.error('Save error:', error);
+      Alert.alert('❌ Error', error.message || 'Failed to save stock entry. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -608,10 +645,10 @@ const styles = StyleSheet.create({
     height: 20,
     borderColor: '#007AFF',
   },
-  topLeft:    { top: -1,    left: -1,  borderTopWidth: 3,    borderLeftWidth: 3  },
-  topRight:   { top: -1,    right: -1, borderTopWidth: 3,    borderRightWidth: 3 },
-  bottomLeft: { bottom: -1, left: -1,  borderBottomWidth: 3, borderLeftWidth: 3  },
-  bottomRight:{ bottom: -1, right: -1, borderBottomWidth: 3, borderRightWidth: 3 },
+  topLeft: { top: -1, left: -1, borderTopWidth: 3, borderLeftWidth: 3 },
+  topRight: { top: -1, right: -1, borderTopWidth: 3, borderRightWidth: 3 },
+  bottomLeft: { bottom: -1, left: -1, borderBottomWidth: 3, borderLeftWidth: 3 },
+  bottomRight: { bottom: -1, right: -1, borderBottomWidth: 3, borderRightWidth: 3 },
   scanLine: {
     position: 'absolute',
     top: '50%',
@@ -647,10 +684,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 40,
   },
-  permissionIcon:       { fontSize: 64, marginBottom: 20 },
-  permissionTitle:      { color: '#fff', fontSize: 18, fontWeight: '600', marginBottom: 10, textAlign: 'center' },
-  permissionSubtext:    { color: 'rgba(255,255,255,0.7)', fontSize: 14, textAlign: 'center', marginBottom: 20 },
-  permissionButton:     { backgroundColor: '#007AFF', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
+  permissionIcon: { fontSize: 64, marginBottom: 20 },
+  permissionTitle: { color: '#fff', fontSize: 18, fontWeight: '600', marginBottom: 10, textAlign: 'center' },
+  permissionSubtext: { color: 'rgba(255,255,255,0.7)', fontSize: 14, textAlign: 'center', marginBottom: 20 },
+  permissionButton: { backgroundColor: '#007AFF', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
   permissionButtonText: { color: '#fff', fontWeight: '600' },
-  permissionText:       { color: '#fff', fontSize: 16, textAlign: 'center' },
+  permissionText: { color: '#fff', fontSize: 16, textAlign: 'center' },
 });

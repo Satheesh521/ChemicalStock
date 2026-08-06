@@ -29,20 +29,15 @@ export const chemicalService = {
         .insert({
           user_id: user.id,
           name: data.name,
-          cas_number: data.cas_number || null,
-          total_stock: parseFloat(data.quantity) || 0,
-          current_stock: parseFloat(data.quantity) || 0,
+          total_stock: parseFloat(data.total_stock || data.quantity) || 0,
+          current_stock: parseFloat(data.current_stock || data.quantity) || 0,
           unit: data.unit || 'kg',
-          min_threshold: parseFloat(data.min_stock_level) || 0,
-          location: data.location || null,
-          supplier: data.supplier || null,
-          hazard_class: data.hazard_class || null,
-          start_date: data.start_date || null, // ✅ Added for your app
-          end_date: data.end_date || null,     // ✅ Added for your app
+          min_threshold: parseFloat(data.min_threshold || data.min_stock_level) || 25,
           is_active: true,
         })
         .select()
         .single();
+
 
       if (error) {
         console.error('❌ Supabase Insert Error:', error.message);
@@ -75,7 +70,7 @@ export const chemicalService = {
         console.error('❌ Supabase Fetch Error:', error.message);
         throw error;
       }
-      
+
       return data || [];
     } catch (error: any) {
       console.error('💥 Fetch Error:', error);
@@ -93,17 +88,12 @@ export const chemicalService = {
         .from('chemicals')
         .update({
           name: data.name,
-          cas_number: data.cas_number || null,
-          total_stock: parseFloat(data.quantity) || 0,
-          current_stock: parseFloat(data.quantity) || 0,
+          total_stock: parseFloat(data.total_stock || data.quantity) || 0,
+          current_stock: parseFloat(data.current_stock || data.quantity) || 0,
           unit: data.unit || 'kg',
-          min_threshold: parseFloat(data.min_stock_level) || 0,
-          location: data.location || null,
-          supplier: data.supplier || null,
-          hazard_class: data.hazard_class || null,
-          start_date: data.start_date || null,
-          end_date: data.end_date || null,
+          min_threshold: parseFloat(data.min_threshold || data.min_stock_level) || 25,
         })
+
         .eq('id', id)
         .eq('user_id', user.id) // ✅ Security: Only update own data
         .select()

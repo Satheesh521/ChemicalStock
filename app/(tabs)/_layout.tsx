@@ -34,24 +34,24 @@ export default function TabLayout() {
           ) 
         }} 
       />
-      <Tabs.Screen 
-        name="want-view" 
-        options={{ 
-          title: 'All View', 
+      <Tabs.Screen
+        name="want-view"
+        options={{
+          title: 'Chemicals',
           tabBarIcon: ({ color }: { color: string }) => (
-            <IconSymbol size={28} name="list.bullet" color={color} />
-          ) 
-        }} 
+            <IconSymbol size={28} name="flask.fill" color={color} />
+          )
+        }}
       />
-      
-      <Tabs.Screen 
-        name="qr-demo" 
-        options={{ 
-          title: 'Stock Entry', 
+
+      <Tabs.Screen
+        name="qr-demo"
+        options={{
+          title: 'Stock Out',
           tabBarIcon: ({ color }: { color: string }) => (
-            <IconSymbol size={28} name="camera.viewfinder" color={color} />
-          ) 
-        }} 
+            <IconSymbol size={28} name="arrow.down.circle.fill" color={color} />
+          )
+        }}
       />
       <Tabs.Screen 
         name="profile" 

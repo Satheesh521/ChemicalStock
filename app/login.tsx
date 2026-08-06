@@ -92,20 +92,19 @@ export default function LoginScreen() {
     try {
       if (isLogin) {
         // ✅ LOGIN
-        await signIn(email, password);
-        
-        // ✅ Navigate to main app after successful login
+        await signIn(email.trim(), password);
+
+        // Success - force redirect to tabs
         setTimeout(() => {
           router.replace('/(tabs)');
         }, 100);
-        
       } else {
         // ✅ SIGNUP
-        await signUp(email, password, name);
-        
+        await signUp(email.trim(), password, name.trim());
+
         Alert.alert(
-          'Success', 
-          'Account created successfully! Please login now.', 
+          'Success',
+          'Account created successfully! Please login now.',
           [
             {
               text: 'OK',
@@ -121,7 +120,7 @@ export default function LoginScreen() {
       }
     } catch (err: any) {
       console.error('❌ Submit error:', err);
-      Alert.alert('Error', err.message || error || 'Something went wrong');
+      Alert.alert('Login Failed', err.message || error || 'Please check your email and password');
     }
   };
 

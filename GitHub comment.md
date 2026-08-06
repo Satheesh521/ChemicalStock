@@ -1,12 +1,12 @@
-## &#x20;                **GitHub comment** 
+## &#x20;                **GitHub comment**
 
 
 
 
 
+\* git config --global core.autocrlf true
 
-
-* git init 
+* git init
 * git add .
 * git commit -m "Initial commit: ChemicalStock React Native project"
 * git remote add origin https://github.com/yourusername/ChemicalStock.git

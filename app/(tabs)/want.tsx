@@ -3,11 +3,11 @@ import { supabase } from '@/lib/supabase';
 import { useCallback, useEffect, useState } from 'react';
 
 import {
-  Alert,
+    Alert,
 
-  KeyboardAvoidingView,
+    KeyboardAvoidingView,
 
-  Platform,
+    Platform,
 } from 'react-native';
 
 
@@ -303,7 +303,7 @@ export default function WantScreen() {
 
       const trimmedName = chemicalName.trim();
 
-      const trimmedTotal = parseInt(totalStock.trim());
+      const trimmedTotal = parseFloat(totalStock.trim());
 
 
 
@@ -311,19 +311,19 @@ export default function WantScreen() {
 
         const { error } = await supabase
 
-          .from('want')
+          .from('chemicals')
 
           .update({
 
-            chemical_name: trimmedName,
+            name: trimmedName,
 
             start_date: startDate,
 
             end_date: endDate,
 
-            total_stock: trimmedTotal,
+            current_stock: trimmedTotal,
 
-            unit: 'kg',
+            total_stock: trimmedTotal,
 
           })
 
@@ -341,21 +341,23 @@ export default function WantScreen() {
 
         const { error } = await supabase
 
-          .from('want')
+          .from('chemicals')
 
           .insert({
 
             user_id: user.id,
 
-            chemical_name: trimmedName,
+            name: trimmedName,
 
             start_date: startDate,
 
             end_date: endDate,
 
+            current_stock: trimmedTotal,
             total_stock: trimmedTotal,
-
             unit: 'kg',
+            min_threshold: 25,
+            is_active: true,
 
           });
 
@@ -367,13 +369,9 @@ export default function WantScreen() {
 
       }
 
-
-
+      
+      fetchChemicals();
       resetForm();
-
-      // Refresh context list
-
-      // You can call a refresh function from useWant if available
 
     } catch (error: any) {
 
@@ -383,7 +381,7 @@ export default function WantScreen() {
 
     }
 
-  }, [chemicalName, startDate, endDate, startDateObj, endDateObj, totalStock, editingId, resetForm]);
+  }, [chemicalName, startDate, endDate, startDateObj, endDateObj, totalStock, editingId, resetForm, fetchChemicals]);
 
 
 

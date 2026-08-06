@@ -20,19 +20,14 @@ export interface Profile {
 export interface Chemical {
   id: string;
   user_id: string;
-  chemical_name: string;
-  chemical_formula: string;
-  cas_number: string;
-  hazard_class: string;
+  name: string;
   total_stock: number;
   current_stock: number;
   unit: string;
   min_threshold: number;
-  location: string;
-  start_date: string | null;
-  end_date: string | null;
-  created_at: string;
-  updated_at: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface StockIn {
@@ -40,14 +35,29 @@ export interface StockIn {
   chemical_id: string;
   quantity: number;
   unit: string;
-  supplier: string;
-  purpose: string;
-  department: string;
-  requested_by: string;
-  approved_by: string | null;
+  supplier: string | null;
+  batch_number: string | null;
+  expiry_date: string | null;
+  notes: string | null;
+  performed_by: string;
+  location: string | null;
+  purchase_date: string | null;
+  created_at?: string;
+}
+
+export interface Want {
+  id: string;
+  user_id: string;
+  chemical_name: string;
+  start_date: string | null;
+  end_date: string | null;
+  total_stock: number | null;
+  unit: string;
+  status: string;
   created_at?: string;
   updated_at?: string;
 }
+
 
 export interface StockOut {
   id: string;
@@ -76,29 +86,27 @@ export interface Alert {
 // ============================================================================
 
 export interface CreateChemicalInput {
-  chemical_name: string;
-  chemical_formula: string;
-  cas_number: string;
-  hazard_class: string;
+  name: string;
   total_stock: number;
   current_stock: number;
   unit: string;
   min_threshold: number;
-  location: string;
-  start_date?: string | null;
-  end_date?: string | null;
+  is_active?: boolean;
 }
 
 export interface CreateStockInInput {
   chemical_id: string;
   quantity: number;
-  unit: string;
-  supplier: string;
-  purpose: string;
-  department: string;
-  requested_by: string;
-  approved_by?: string | null;
+  unit?: string;
+  supplier?: string;
+  batch_number?: string;
+  expiry_date?: string;
+  notes?: string;
+  performed_by: string;
+  location?: string;
+  purchase_date?: string;
 }
+
 
 export interface CreateStockOutInput {
   chemical_id: string;

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
   Alert,
   StyleSheet,
@@ -11,10 +12,6 @@ import { supabase } from '@/lib/supabase';
 export default function WantViewScreen() {
   const [items, setItems] = useState<any[]>([]);
   const [stockOutItems, setStockOutItems] = useState<any[]>([]);
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   const fetchData = async () => {
     try {
@@ -29,6 +26,13 @@ export default function WantViewScreen() {
       console.error('Error fetching data:', error);
     }
   };
+
+  // Refresh data when tab is focused
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [])
+  );
 
   const deleteItem = async (id: string) => {
     try {

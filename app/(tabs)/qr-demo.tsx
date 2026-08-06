@@ -139,12 +139,19 @@ export default function QRDemo() {
 
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Error', 'Please login first');
+        return;
+      }
+
       const recordId = uuidv4();
       const isoDate = convertDateToISO(formData.expiryDate);
       const tableName = entryType === 'in' ? 'stock_in' : 'stock_out';
-      
+
       const insertData = entryType === 'in' ? {
         id: recordId,
+        user_id: user.id,
         chemical_name: formData.chemicalName.trim(),
         batch_number: formData.batchNumber.trim(),
         quantity: formData.quantity,
@@ -156,6 +163,7 @@ export default function QRDemo() {
         added_by: userId,
       } : {
         id: recordId,
+        user_id: user.id,
         chemical_name: formData.chemicalName.trim(),
         batch_number: formData.batchNumber.trim(),
         quantity: formData.quantity,
@@ -163,12 +171,13 @@ export default function QRDemo() {
         mc_no: formData.batchNumber.trim(),
         date_out: isoDate,
         notes: formData.notes.trim(),
-        added_by: userId,
+        performed_by: user.id,
       };
 
       const { error } = await supabase.from(tableName).insert([insertData]);
 
       if (error) {
+        console.error('Supabase error:', error);
         Alert.alert('Error', 'Failed to save: ' + error.message);
         return;
       }
@@ -176,7 +185,8 @@ export default function QRDemo() {
       Alert.alert('Success ✅', `${entryType === 'in' ? 'Stock In' : 'Stock Out'} saved!`,
         [{ text: 'OK', onPress: () => { clearForm(); fetchSavedEntries(); } }]);
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      console.error('Save error:', error);
+      Alert.alert('Error', error.message || 'Failed to save');
     } finally {
       setLoading(false);
     }
@@ -359,38 +369,66 @@ export default function QRDemo() {
 
         {/* Saved Entries Section */}
         <View style={styles.savedEntriesSection}>
-          <Text style={styles.savedEntriesTitle}>
-            {entryType === 'in' ? '📥 Stock In Entries' : '📤 Stock Out Entries'} ({savedEntries.length})
-          </Text>
+          <View style={styles.savedEntriesHeader}>
+            <Text style={styles.savedEntriesTitle}>
+              {entryType === 'in' ? '📥 Stock In History' : '📤 Stock Out History'}
+            </Text>
+            <View style={styles.entryCountBadge}>
+              <Text style={styles.entryCountText}>{savedEntries.length}</Text>
+            </View>
+          </View>
           {savedEntries.length === 0 ? (
-            <Text style={styles.noEntriesText}>No entries yet</Text>
+            <View style={styles.noEntriesContainer}>
+              <Text style={styles.noEntriesEmoji}>📋</Text>
+              <Text style={styles.noEntriesText}>No entries yet</Text>
+              <Text style={styles.noEntriesSubtext}>Start by adding your first entry</Text>
+            </View>
           ) : (
             savedEntries.map((entry) => (
               <View key={entry.id} style={styles.entryCard}>
-                <View style={styles.entryHeader}>
-                  <Text style={styles.entryChemicalName}>{entry.chemical_name}</Text>
+                <View style={styles.entryCardHeader}>
+                  <View style={[styles.entryTypeBadge, { backgroundColor: entryType === 'in' ? '#28a745' : '#dc3545' }]}>
+                    <Text style={styles.entryTypeText}>
+                      {entryType === 'in' ? 'IN' : 'OUT'}
+                    </Text>
+                  </View>
                   <Text style={styles.entryDate}>
                     {entryType === 'in' ? entry.expiry_date : entry.date_out}
                   </Text>
                 </View>
-                <View style={styles.entryDetails}>
-                  <Text style={styles.entryDetail}>
-                    <Text style={styles.detailLabel}>Batch:</Text> {entry.batch_number || entry.mc_no}
-                  </Text>
-                  <Text style={styles.entryDetail}>
-                    <Text style={styles.detailLabel}>Qty:</Text> {entry.quantity} {entry.unit}
-                  </Text>
-                  {entryType === 'in' && entry.vendor && (
-                    <Text style={styles.entryDetail}>
-                      <Text style={styles.detailLabel}>Vendor:</Text> {entry.vendor}
-                    </Text>
-                  )}
-                  {entryType === 'in' && entry.location && (
-                    <Text style={styles.entryDetail}>
-                      <Text style={styles.detailLabel}>Location:</Text> {entry.location}
-                    </Text>
-                  )}
+                <Text style={styles.entryChemicalName}>{entry.chemical_name}</Text>
+                <View style={styles.entryInfoRow}>
+                  <View style={styles.entryInfoItem}>
+                    <Text style={styles.entryInfoLabel}>Batch</Text>
+                    <Text style={styles.entryInfoValue}>{entry.batch_number || entry.mc_no || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.entryInfoItem}>
+                    <Text style={styles.entryInfoLabel}>Quantity</Text>
+                    <Text style={styles.entryInfoValue}>{entry.quantity} {entry.unit}</Text>
+                  </View>
                 </View>
+                {entryType === 'in' && (entry.vendor || entry.location) && (
+                  <View style={styles.entryInfoRow}>
+                    {entry.vendor && (
+                      <View style={styles.entryInfoItem}>
+                        <Text style={styles.entryInfoLabel}>Vendor</Text>
+                        <Text style={styles.entryInfoValue}>{entry.vendor}</Text>
+                      </View>
+                    )}
+                    {entry.location && (
+                      <View style={styles.entryInfoItem}>
+                        <Text style={styles.entryInfoLabel}>Location</Text>
+                        <Text style={styles.entryInfoValue}>{entry.location}</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+                {entry.notes && (
+                  <View style={styles.notesContainer}>
+                    <Text style={styles.notesLabel}>Notes:</Text>
+                    <Text style={styles.notesText}>{entry.notes}</Text>
+                  </View>
+                )}
               </View>
             ))
           )}
@@ -462,13 +500,25 @@ const styles = StyleSheet.create({
   permissionButton: { backgroundColor: '#007AFF', margin: 20, padding: 16, borderRadius: 8, alignItems: 'center' },
   permissionButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   savedEntriesSection: { backgroundColor: '#fff', borderRadius: 12, padding: 20, marginTop: 20 },
-  savedEntriesTitle: { fontSize: 18, fontWeight: '600', marginBottom: 16, color: '#000' },
-  noEntriesText: { fontSize: 14, color: '#6c757d', textAlign: 'center', paddingVertical: 20 },
-  entryCard: { backgroundColor: '#f8f9fa', borderRadius: 8, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#dee2e6' },
-  entryHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  entryChemicalName: { fontSize: 16, fontWeight: '600', color: '#000', flex: 1 },
-  entryDate: { fontSize: 12, color: '#6c757d' },
-  entryDetails: { gap: 4 },
-  entryDetail: { fontSize: 14, color: '#333' },
-  detailLabel: { fontWeight: '600', color: '#495057' },
+  savedEntriesHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  savedEntriesTitle: { fontSize: 18, fontWeight: '600', color: '#000' },
+  entryCountBadge: { backgroundColor: '#007AFF', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4, minWidth: 24, alignItems: 'center' },
+  entryCountText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  noEntriesContainer: { alignItems: 'center', paddingVertical: 32 },
+  noEntriesEmoji: { fontSize: 48, marginBottom: 12 },
+  noEntriesText: { fontSize: 16, color: '#6c757d', fontWeight: '500' },
+  noEntriesSubtext: { fontSize: 14, color: '#adb5bd', marginTop: 4 },
+  entryCard: { backgroundColor: '#f8f9fa', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#e9ecef', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 2 },
+  entryCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  entryTypeBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
+  entryTypeText: { color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  entryChemicalName: { fontSize: 16, fontWeight: '600', color: '#000', marginBottom: 12 },
+  entryInfoRow: { flexDirection: 'row', gap: 16, marginBottom: 8 },
+  entryInfoItem: { flex: 1 },
+  entryInfoLabel: { fontSize: 12, color: '#6c757d', fontWeight: '500', marginBottom: 2 },
+  entryInfoValue: { fontSize: 14, color: '#000', fontWeight: '600' },
+  notesContainer: { backgroundColor: '#fff', borderRadius: 6, padding: 10, marginTop: 8, borderWidth: 1, borderColor: '#e9ecef' },
+  notesLabel: { fontSize: 12, color: '#6c757d', fontWeight: '600', marginBottom: 4 },
+  notesText: { fontSize: 13, color: '#495057', lineHeight: 18 },
+  entryDate: { fontSize: 12, color: '#6c757d', fontWeight: '500' },
 });
