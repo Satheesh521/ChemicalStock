@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import {
-    FlatList,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
+  FlatList,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -43,10 +43,10 @@ export function WantView({
     if (!searchQuery.trim() || !focusedInput) {
       return [];
     }
-    
+
     const query = searchQuery.toLowerCase().trim();
     return items
-      .filter(chemical => 
+      .filter(chemical =>
         chemical.chemicalName.toLowerCase().startsWith(query)
       )
       .slice(0, 8); // Limit to 8 suggestions
@@ -82,11 +82,11 @@ export function WantView({
     // Convert to integers (multiply by 10000 for precision) to avoid floating point errors
     const factor = 10000;
     let result = Math.round(total * factor);
-    
+
     for (const deduction of deductions) {
       result -= Math.round(deduction * factor);
     }
-    
+
     // Convert back to decimal
     return result / factor;
   };
@@ -129,18 +129,18 @@ export function WantView({
   const chemicalsWithRemaining = useMemo(() => {
     return filteredChemicals.map((chemical: any) => {
       const totalStock = parseFloat(chemical.totalStock) || 0; // WantItem.totalStock is always plain kg
-      
+
       // Sum all stock outs for this chemical (convert all to kg for calculation)
       const stockOuts = stockOutItems
         .filter(item => item.chemicalName.toLowerCase() === chemical.chemicalName.toLowerCase())
         .map(item => convertUnitToKg(parseFloat(item.stockValue), item.stockUnit));
-      
+
       const totalStockOut = stockOuts.reduce((sum, val) => sum + val, 0);
       const remainingStock = calculateRemaining(totalStock, totalStockOut);
-      
+
       // Handle NaN and ensure valid number
       const safeRemainingStock = isNaN(remainingStock) ? 0 : remainingStock;
-      
+
       return {
         ...chemical,
         remainingStock: formatStockValue(safeRemainingStock),
@@ -167,21 +167,21 @@ export function WantView({
         item => item.chemicalName.toLowerCase() === stockOut.chemicalName.toLowerCase()
       );
       const totalStock = matchingChemical ? parseFloat(matchingChemical.totalStock) : 0;
-      
+
       // Sum all stock outs for this chemical name (convert all to kg for calculation)
       const stockOuts = stockOutItems
         .filter(item => item.chemicalName.toLowerCase() === stockOut.chemicalName.toLowerCase())
         .map(item => convertUnitToKg(parseFloat(item.stockValue), item.stockUnit));
-      
+
       const totalStockOut = stockOuts.reduce((sum, val) => sum + val, 0);
       const remainingStockKg = calculateRemaining(totalStock, totalStockOut);
-      
+
       // Convert remaining stock to the unit used in this stock out
       const remainingInUnit = convertKgToUnit(remainingStockKg, stockOut.stockUnit || 'kg');
-      
+
       // Use the original stock out value (no conversion needed)
       const originalStockValue = parseFloat(stockOut.stockValue);
-      
+
       return {
         ...stockOut,
         remainingStock: formatStockValue(remainingInUnit),
@@ -194,9 +194,9 @@ export function WantView({
   const renderSearchBox = () => (
     <View style={styles.searchContainer}>
       <ThemedText type="title" style={styles.viewTitle}>
-        Chemical Stock Maintains
+        Chemical Stock Maintenance
       </ThemedText>
-      
+
       {/* Tab Buttons */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
@@ -316,8 +316,8 @@ export function WantView({
           {item.totalStock} kg
         </ThemedText>
         <ThemedText style={[
-          styles.cell, 
-          { 
+          styles.cell,
+          {
             color: parseFloat(item.remainingStock) > 0 ? '#49d137' : parseFloat(item.remainingStock) === parseFloat(item.totalStock) ? '#000' : '#ff4d4d',
             fontWeight: '600'
           }

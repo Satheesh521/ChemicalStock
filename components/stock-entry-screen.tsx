@@ -1,3 +1,4 @@
+import { Picker } from '@react-native-picker/picker';
 import { Camera, CameraView } from 'expo-camera';
 import { useEffect, useState } from 'react';
 import {
@@ -405,12 +406,19 @@ export default function StockEntryScreen() {
           </View>
           <View style={[styles.field, { flex: 1 }]}>
             <Text style={styles.label}>Unit</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.unit}
-              onChangeText={(value) => handleInputChange('unit', value)}
-              placeholder="kg"
-            />
+            <View style={[styles.input, { padding: 0 }]}>
+              <Picker
+                selectedValue={formData.unit}
+                onValueChange={(value) => handleInputChange('unit', value)}
+                mode="dropdown"
+              >
+                <Picker.Item label="kg" value="kg" />
+                <Picker.Item label="g" value="g" />
+                <Picker.Item label="mg" value="mg" />
+                <Picker.Item label="l" value="l" />
+                <Picker.Item label="ml" value="ml" />
+              </Picker>
+            </View>
           </View>
         </View>
 

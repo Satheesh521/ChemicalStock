@@ -46,7 +46,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="stock-out"
+        name="stockOut"
         options={{
           title: 'Stock Out',
           tabBarIcon: ({ color }: { color: string }) => (

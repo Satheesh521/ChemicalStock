@@ -140,41 +140,51 @@ export function WantForm({
       </View>
 
       {showStartPicker && (
-        <DateTimePicker
-          value={startDateObj ?? new Date()}
-          mode="date"
-          display="default"
-          onChange={(event: any, d?: Date) => {
-            if (Platform.OS === 'android' && event?.type === 'dismissed') {
-              setShowStartPicker(false);
-              return;
-            }
-            setShowStartPicker(Platform.OS === 'ios');
-            if (d) {
-              handleStartDateChange(d);
-              if (Platform.OS === 'android') setShowStartPicker(false);
-            }
-          }}
-        />
+        <View style={styles.pickerOverlay} pointerEvents="box-none">
+          <View style={styles.pickerBackdrop} />
+          <View style={styles.pickerWrapper}>
+            <DateTimePicker
+              value={startDateObj ?? new Date()}
+              mode="date"
+              display="default"
+              onChange={(event: any, d?: Date) => {
+                if (Platform.OS === 'android' && event?.type === 'dismissed') {
+                  setShowStartPicker(false);
+                  return;
+                }
+                setShowStartPicker(Platform.OS === 'ios');
+                if (d) {
+                  handleStartDateChange(d);
+                  if (Platform.OS === 'android') setShowStartPicker(false);
+                }
+              }}
+            />
+          </View>
+        </View>
       )}
 
       {showEndPicker && (
-        <DateTimePicker
-          value={endDateObj ?? new Date()}
-          mode="date"
-          display="default"
-          onChange={(event: any, d?: Date) => {
-            if (Platform.OS === 'android' && event?.type === 'dismissed') {
-              setShowEndPicker(false);
-              return;
-            }
-            setShowEndPicker(Platform.OS === 'ios');
-            if (d) {
-              handleEndDateChange(d);
-              if (Platform.OS === 'android') setShowEndPicker(false);
-            }
-          }}
-        />
+        <View style={styles.pickerOverlay} pointerEvents="box-none">
+          <View style={styles.pickerBackdrop} />
+          <View style={styles.pickerWrapper}>
+            <DateTimePicker
+              value={endDateObj ?? new Date()}
+              mode="date"
+              display="default"
+              onChange={(event: any, d?: Date) => {
+                if (Platform.OS === 'android' && event?.type === 'dismissed') {
+                  setShowEndPicker(false);
+                  return;
+                }
+                setShowEndPicker(Platform.OS === 'ios');
+                if (d) {
+                  handleEndDateChange(d);
+                  if (Platform.OS === 'android') setShowEndPicker(false);
+                }
+              }}
+            />
+          </View>
+        </View>
       )}
 
       <View style={styles.fieldInline}>
@@ -341,6 +351,33 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
     color: '#000',
     flex: 1,
+  },
+  pickerOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    zIndex: 2000,
+    elevation: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickerBackdrop: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)'
+  },
+  pickerWrapper: {
+    width: '90%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    overflow: 'hidden',
+    zIndex: 3000,
+    elevation: 22,
   },
   dateInput: {
     justifyContent: 'center',

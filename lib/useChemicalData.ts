@@ -6,25 +6,26 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-    addChemical,
-    addStockIn,
-    addStockOut,
-    fetchAlerts,
-    fetchChemicalById,
-    fetchChemicals,
-    fetchStockInHistory,
-    fetchStockOutHistory,
-    markAlertAsRead,
-    markAllAlertsAsRead,
+  addChemical,
+  addStockIn,
+  addStockOut,
+  fetchAlerts,
+  fetchChemicalById,
+  fetchChemicals,
+  fetchStockInHistory,
+  fetchStockOutHistory,
+  markAlertAsRead,
+  markAllAlertsAsRead,
 } from './chemicalService';
+import { supabase } from './supabase';
 import type {
-    Alert,
-    ChemicalWithHistory,
-    CreateChemicalInput,
-    CreateStockInInput,
-    CreateStockOutInput,
-    StockIn,
-    StockOut
+  Alert,
+  ChemicalWithHistory,
+  CreateChemicalInput,
+  CreateStockInInput,
+  CreateStockOutInput,
+  StockIn,
+  StockOut
 } from './types';
 
 // ============================================================================
@@ -146,6 +147,46 @@ export function useChemicalData() {
     }
   }, []);
 
+  // =========================================================================
+  // REALTIME SUBSCRIPTIONS: keep chemicals & histories in sync
+  // =========================================================================
+  useEffect(() => {
+    let chemicalsChannel: any;
+    let stockInChannel: any;
+    let stockOutChannel: any;
+
+    try {
+      chemicalsChannel = supabase
+        .channel('realtime_chemicals_hook')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'chemicals' }, () => {
+          loadChemicals();
+        })
+        .subscribe();
+
+      stockInChannel = supabase
+        .channel('realtime_stock_in_hook')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_in' }, () => {
+          loadChemicals();
+        })
+        .subscribe();
+
+      stockOutChannel = supabase
+        .channel('realtime_stock_out_hook')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_out' }, () => {
+          loadChemicals();
+        })
+        .subscribe();
+    } catch (e) {
+      console.warn('Realtime subscription setup failed', e);
+    }
+
+    return () => {
+      try { if (chemicalsChannel) supabase.removeChannel(chemicalsChannel); } catch (e) { }
+      try { if (stockInChannel) supabase.removeChannel(stockInChannel); } catch (e) { }
+      try { if (stockOutChannel) supabase.removeChannel(stockOutChannel); } catch (e) { }
+    };
+  }, [loadChemicals]);
+
   /**
    * Add a new chemical
    */
@@ -217,10 +258,10 @@ export function useChemicalData() {
       setTransactionState({ loading: true, error: null, success: false });
       try {
         const stockIn = await addStockIn(input);
-        
+
         // Reload chemicals to reflect updated stock
         await loadChemicals();
-        
+
         // Reload history
         if (input.chemical_id) {
           await loadStockInHistory(input.chemical_id);
@@ -278,10 +319,10 @@ export function useChemicalData() {
       setTransactionState({ loading: true, error: null, success: false });
       try {
         const stockOut = await addStockOut(input);
-        
+
         // Reload chemicals to reflect updated stock
         await loadChemicals();
-        
+
         // Reload history
         if (input.chemical_id) {
           await loadStockOutHistory(input.chemical_id);
@@ -437,6 +478,53 @@ export function useChemicalData() {
     transactionState,
     historyState,
   };
+}
+
+// ============================================================================
+// REALTIME: subscribe to supabase changes and keep state fresh
+// ============================================================================
+export function useChemicalRealtime(onChemicalsChanged?: () => void) {
+  // Lightweight helper hook: subscribes to chemicals/stock_in/stock_out updates
+  // and calls provided callback so components can reload as needed.
+  // Note: this returns an unsubscribe function when called.
+  const setup = () => {
+    try {
+      const chemicalsChannel = supabase
+        .channel('realtime_chemicals')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'chemicals' }, (payload) => {
+          console.log('realtime chemicals change', payload);
+          onChemicalsChanged?.();
+        })
+        .subscribe();
+
+      const stockInChannel = supabase
+        .channel('realtime_stock_in')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_in' }, (payload) => {
+          console.log('realtime stock_in change', payload);
+          onChemicalsChanged?.();
+        })
+        .subscribe();
+
+      const stockOutChannel = supabase
+        .channel('realtime_stock_out')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_out' }, (payload) => {
+          console.log('realtime stock_out change', payload);
+          onChemicalsChanged?.();
+        })
+        .subscribe();
+
+      return () => {
+        try { supabase.removeChannel(chemicalsChannel); } catch (e) { /* ignore */ }
+        try { supabase.removeChannel(stockInChannel); } catch (e) { /* ignore */ }
+        try { supabase.removeChannel(stockOutChannel); } catch (e) { /* ignore */ }
+      };
+    } catch (e) {
+      console.warn('Failed to setup realtime subscriptions', e);
+      return () => { };
+    }
+  };
+
+  return { setup };
 }
 
 // ============================================================================

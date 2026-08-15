@@ -1,4 +1,4 @@
- import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   FlatList,
   StyleSheet,
@@ -23,69 +23,57 @@ export default function AlertScreen() {
 
   const fetchData = async () => {
     try {
-      const [chemicalsData, stockOutData] = await Promise.all([
-        supabase.from('chemicals').select('*').eq('is_active', true),
+      const [chemicalsResp, stockOutResp] = await Promise.all([
+        supabase.from('chemicals').select('id, name, current_stock, total_stock, min_threshold, start_date, end_date').eq('is_active', true),
         supabase.from('stock_out').select('*')
       ]);
 
-      if (chemicalsData.data) setItems(chemicalsData.data);
-      if (stockOutData.data) setStockOutItems(stockOutData.data);
+      const chems = (chemicalsResp.data || []).map((c: any) => ({
+        id: c.id,
+        chemicalName: c.name || c.chemical_name || 'Unknown Chemical',
+        current_stock: Number(c.current_stock) || 0,
+        total_stock: Number(c.total_stock) || 0,
+        min_threshold: Number(c.min_threshold) || 25,
+        startDate: c.start_date,
+        endDate: c.end_date,
+      }));
+
+      setItems(chems);
+      if (stockOutResp.data) setStockOutItems(stockOutResp.data);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
   };
 
-  // Calculate alerts for stock below 25kg threshold
+  // Calculate alerts based on current_stock and min_threshold
   const alerts = useMemo(() => {
-    const filteredItems = items.filter(chemical =>
-      searchQuery.trim() === '' || chemical.chemicalName.toLowerCase().includes(searchQuery.toLowerCase())
+    const filtered = items.filter((c: any) =>
+      searchQuery.trim() === '' || c.chemicalName.toLowerCase().includes(searchQuery.toLowerCase())
     );
-    
-    return filteredItems
-      .map(chemical => {
-        const totalStock = parseFloat(chemical.totalStock) || 0;
-        
-        // Sum all stock outs for this chemical (convert all to kg for calculation)
-        const totalStockOut = stockOutItems
-          .filter(item => item.chemicalName.toLowerCase() === chemical.chemicalName.toLowerCase())
-          .reduce((sum, item) => {
-            const stockValue = parseFloat(item.stockValue) || 0;
-            const unit = item.stockUnit;
-            // Convert to kg for calculation
-            if (unit === 'kg') return sum + stockValue;
-            if (unit === 'g') return sum + (stockValue / 1000);
-            if (unit === 'mg') return sum + (stockValue / 1000000);
-            return sum;
-          }, 0);
-        
-        const remainingStock = totalStock - totalStockOut;
-        
-        // Handle NaN and ensure valid number
-        const safeRemainingStock = isNaN(remainingStock) ? 0 : remainingStock;
-        
-        // Alert threshold: 25kg
-        const ALERT_THRESHOLD = 25;
-        
-        const hasAlert = safeRemainingStock < ALERT_THRESHOLD;
-        
+
+    return filtered
+      .map((c: any) => {
+        const current = Number(c.current_stock) || Number(c.total_stock) || 0;
+        const threshold = Number(c.min_threshold) || 25;
+        const hasAlert = current <= threshold;
         return {
-          id: chemical.id,
-          chemicalName: chemical.chemicalName,
-          totalStock,
-          remainingStock: safeRemainingStock,
-          startDate: chemical.startDate,
-          endDate: chemical.endDate,
+          id: c.id,
+          chemicalName: c.chemicalName,
+          remainingStock: current,
+          min_threshold: threshold,
+          startDate: c.startDate,
+          endDate: c.endDate,
           hasAlert,
         };
       })
-      .filter(alert => alert.hasAlert)
-      .sort((a, b) => a.remainingStock - b.remainingStock); // Sort by lowest stock first
-  }, [items, stockOutItems, searchQuery]);
+      .filter((a: any) => a.hasAlert)
+      .sort((a: any, b: any) => a.remainingStock - b.remainingStock);
+  }, [items, searchQuery]);
 
+  // Always display 3 decimal places per requirement
   const formatValue = (value: number | undefined): string => {
-    if (value === undefined || value === null || isNaN(value)) return '0';
-    const formatted = value.toFixed(6).replace(/\.?0+$/, '');
-    return formatted || '0';
+    if (value === undefined || value === null || isNaN(value)) return '0.000';
+    return Number(value).toFixed(3);
   };
 
   const formatDate = (dateString?: string) => {
@@ -151,13 +139,13 @@ export default function AlertScreen() {
     <TouchableOpacity>
       <ThemedView style={styles.row}>
         <ThemedText style={[styles.cell, { flex: 2 }]} type="defaultSemiBold">
-          {item.chemicalName}
+          {item.chemicalName || 'Unknown Chemical'}
         </ThemedText>
         <ThemedText style={styles.cell}>
           {formatValue(item.remainingStock)} kg
         </ThemedText>
         <ThemedText style={[styles.cell, { textAlign: 'right' }]}>
-          🔴 Below 25kg
+          🔴 Below {item.min_threshold ?? 25}kg
         </ThemedText>
       </ThemedView>
     </TouchableOpacity>
