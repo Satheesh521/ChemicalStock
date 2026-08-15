@@ -178,7 +178,7 @@ export default function StockEntryScreen() {
 
     // Force a re-render by triggering a state update
     setTimeout(() => {
-      console.log('🔄 Forced form update check:', formData); // Debug log
+      console.log('🔄 Forced form update check:', newFormData); // Debug log - show the updated values
     }, 100);
   };
 
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
   },
   fieldRow: {
     flexDirection: 'row',
-    gap: 12,
+    // 'gap' is not supported on all React Native versions; use spacing via styles on children instead
   },
   label: {
     fontSize: 14,
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 12,
+    // 'gap' removed for RN compatibility; uses margins on buttons instead
     marginTop: 20,
   },
   button: {

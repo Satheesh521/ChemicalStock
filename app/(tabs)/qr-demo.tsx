@@ -1,20 +1,21 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
-import { CameraView, useCameraPermissions } from 'expo-camera'; // ✅ Updated import
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../../lib/supabase';
+import { chemicalService } from '../../services/chemicalService';
 
 interface StockEntryData {
   chemicalName: string;
@@ -30,12 +31,11 @@ interface StockEntryData {
 type EntryType = 'in' | 'out';
 
 export default function QRDemo() {
-  const [permission, requestPermission] = useCameraPermissions(); // ✅ New permission hook
+  const [permission, requestPermission] = useCameraPermissions();
   const [showScanner, setShowScanner] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [entryType, setEntryType] = useState<EntryType>('in');
-  const [userId, setUserId] = useState<string>('demo-user');
   const [savedEntries, setSavedEntries] = useState<any[]>([]);
 
   const [formData, setFormData] = useState<StockEntryData>({
@@ -49,14 +49,12 @@ export default function QRDemo() {
     notes: '',
   });
 
-  // ✅ Request camera permission
   useEffect(() => {
     if (!permission?.granted) {
       requestPermission();
     }
   }, [permission]);
 
-  // Fetch saved entries on load and when entry type changes
   useEffect(() => {
     fetchSavedEntries();
   }, [entryType]);
@@ -85,31 +83,28 @@ export default function QRDemo() {
     try {
       const qrData = JSON.parse(data);
 
-      // Parse expiryDate from ISO (YYYY-MM-DD) to DD/MM/YYYY for display
       let parsedExpiryDate = '';
       if (qrData.expiryDate) {
-        const parts = qrData.expiryDate.split('-'); // ["2026","06","30"]
+        const parts = qrData.expiryDate.split('-');
         if (parts.length === 3) {
-          parsedExpiryDate = `${parts[2]}/${parts[1]}/${parts[0]}`; // "30/06/2026"
+          parsedExpiryDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
         } else {
           parsedExpiryDate = qrData.expiryDate;
         }
       }
 
-      // Fill ALL form fields from QR data automatically (no Alert popup)
       setFormData(prev => ({
         ...prev,
-        chemicalName: qrData.name       || prev.chemicalName,
-        batchNumber:  qrData.batchNumber || qrData.batch || prev.batchNumber,
-        quantity:     qrData.quantity    ?? qrData.qty   ?? prev.quantity,
-        unit:         qrData.unit        || prev.unit,
-        expiryDate:   parsedExpiryDate   || prev.expiryDate,
-        vendor:       qrData.vendor      || prev.vendor,
-        location:     qrData.location    || prev.location,
-        notes:        qrData.notes       || prev.notes,
+        chemicalName: qrData.name || prev.chemicalName,
+        batchNumber: qrData.batchNumber || qrData.batch || prev.batchNumber,
+        quantity: qrData.quantity ?? qrData.qty ?? prev.quantity,
+        unit: qrData.unit || prev.unit,
+        expiryDate: parsedExpiryDate || prev.expiryDate,
+        vendor: qrData.vendor || prev.vendor,
+        location: qrData.location || prev.location,
+        notes: qrData.notes || prev.notes,
       }));
     } catch (e) {
-      // If QR is plain text (not JSON), use it as chemical name
       setFormData(prev => ({ ...prev, chemicalName: data }));
     }
   };
@@ -128,10 +123,6 @@ export default function QRDemo() {
       Alert.alert('Error', 'Please enter chemical name');
       return;
     }
-    if (!formData.batchNumber.trim()) {
-      Alert.alert('Error', 'Please enter batch number');
-      return;
-    }
     if (formData.quantity <= 0) {
       Alert.alert('Error', 'Please enter valid quantity');
       return;
@@ -140,39 +131,59 @@ export default function QRDemo() {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        Alert.alert('Error', 'Please login first');
-        return;
-      }
-
       const recordId = uuidv4();
       const isoDate = convertDateToISO(formData.expiryDate);
       const tableName = entryType === 'in' ? 'stock_in' : 'stock_out';
 
+      // Schema Matching Data Payload
       const insertData = entryType === 'in' ? {
         id: recordId,
-        user_id: user.id,
-        chemical_name: formData.chemicalName.trim(),
-        batch_number: formData.batchNumber.trim(),
         quantity: formData.quantity,
         unit: formData.unit,
+        supplier: formData.vendor.trim(),
+        batch_number: formData.batchNumber.trim(),
         expiry_date: isoDate,
-        vendor: formData.vendor.trim(),
-        location: formData.location.trim(),
         notes: formData.notes.trim(),
-        added_by: userId,
+        location: formData.location.trim(),
+        purchase_date: isoDate,
+        performed_by: user?.id || null,
+        added_by: user?.id || null,
       } : {
         id: recordId,
-        user_id: user.id,
         chemical_name: formData.chemicalName.trim(),
-        batch_number: formData.batchNumber.trim(),
+        mc_no: formData.batchNumber.trim(),
         quantity: formData.quantity,
         unit: formData.unit,
-        mc_no: formData.batchNumber.trim(),
         date_out: isoDate,
         notes: formData.notes.trim(),
-        performed_by: user.id,
+        performed_by: user?.id || null,
+        user_id: user?.id || null,
       };
+
+      // If this is a Stock IN, ensure the chemical exists and update its stock
+      if (entryType === 'in') {
+        const chemicals = await chemicalService.getChemicals();
+        let chemical = chemicals.find((c: any) => c.name.toLowerCase() === formData.chemicalName.trim().toLowerCase());
+
+        if (!chemical) {
+          chemical = await chemicalService.addChemical({
+            name: formData.chemicalName.trim(),
+            quantity: formData.quantity,
+            unit: formData.unit,
+          });
+        } else {
+          const newCurrent = Number(chemical.current_stock || 0) + Number(formData.quantity || 0);
+          const newTotal = Number(chemical.total_stock || 0) + Number(formData.quantity || 0);
+          await chemicalService.updateChemical(chemical.id, {
+            ...chemical,
+            current_stock: newCurrent,
+            total_stock: newTotal,
+          });
+        }
+
+        // attach chemical_id to the insert payload so Details view can relate
+        (insertData as any).chemical_id = chemical.id;
+      }
 
       const { error } = await supabase.from(tableName).insert([insertData]);
 
@@ -228,13 +239,11 @@ export default function QRDemo() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>{entryType === 'in' ? 'Stock Entry (In)' : 'Stock Out'}</Text>
         <Text style={styles.subtitle}>Scan QR or enter manually</Text>
       </View>
 
-      {/* Toggle */}
       <View style={styles.toggleContainer}>
         <TouchableOpacity
           style={[styles.toggleButton, entryType === 'in' && styles.toggleActive]}
@@ -269,12 +278,12 @@ export default function QRDemo() {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Batch Number *</Text>
+            <Text style={styles.label}>Batch / Machine Number</Text>
             <TextInput
               style={styles.input}
               value={formData.batchNumber}
               onChangeText={(text) => setFormData(prev => ({ ...prev, batchNumber: text }))}
-              placeholder="Enter batch number"
+              placeholder="Enter batch or machine number"
             />
           </View>
 
@@ -367,7 +376,6 @@ export default function QRDemo() {
           </View>
         </View>
 
-        {/* Saved Entries Section */}
         <View style={styles.savedEntriesSection}>
           <View style={styles.savedEntriesHeader}>
             <Text style={styles.savedEntriesTitle}>
@@ -396,10 +404,10 @@ export default function QRDemo() {
                     {entryType === 'in' ? entry.expiry_date : entry.date_out}
                   </Text>
                 </View>
-                <Text style={styles.entryChemicalName}>{entry.chemical_name}</Text>
+                <Text style={styles.entryChemicalName}>{entry.chemical_name || 'N/A'}</Text>
                 <View style={styles.entryInfoRow}>
                   <View style={styles.entryInfoItem}>
-                    <Text style={styles.entryInfoLabel}>Batch</Text>
+                    <Text style={styles.entryInfoLabel}>Batch/MC No</Text>
                     <Text style={styles.entryInfoValue}>{entry.batch_number || entry.mc_no || 'N/A'}</Text>
                   </View>
                   <View style={styles.entryInfoItem}>
@@ -407,12 +415,12 @@ export default function QRDemo() {
                     <Text style={styles.entryInfoValue}>{entry.quantity} {entry.unit}</Text>
                   </View>
                 </View>
-                {entryType === 'in' && (entry.vendor || entry.location) && (
+                {entryType === 'in' && (entry.supplier || entry.location) && (
                   <View style={styles.entryInfoRow}>
-                    {entry.vendor && (
+                    {entry.supplier && (
                       <View style={styles.entryInfoItem}>
                         <Text style={styles.entryInfoLabel}>Vendor</Text>
-                        <Text style={styles.entryInfoValue}>{entry.vendor}</Text>
+                        <Text style={styles.entryInfoValue}>{entry.supplier}</Text>
                       </View>
                     )}
                     {entry.location && (
@@ -435,7 +443,6 @@ export default function QRDemo() {
         </View>
       </ScrollView>
 
-      {/* ✅ Updated QR Scanner Modal with CameraView */}
       <Modal visible={showScanner} animationType="slide">
         <View style={styles.scannerContainer}>
           <CameraView

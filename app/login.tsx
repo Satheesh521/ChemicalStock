@@ -120,7 +120,11 @@ export default function LoginScreen() {
       }
     } catch (err: any) {
       console.error('❌ Submit error:', err);
-      Alert.alert('Login Failed', err.message || error || 'Please check your email and password');
+      const displayMessage = typeof err === 'string'
+        ? err
+        : err?.message || 'Please check your email and password';
+
+      Alert.alert(isLogin ? 'Login Failed' : 'Signup Failed', displayMessage);
     }
   };
 

@@ -39,7 +39,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // 1. Initial Session Check
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(formatUser(session.user));
@@ -49,7 +48,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    // 2. Auth State Change Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         setUser(formatUser(session.user));
@@ -64,6 +62,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const parseErrorMessage = (err: any): string => {
+    if (!err) return 'An unknown error occurred';
+    if (typeof err === 'string') return err;
+    if (err.message && typeof err.message === 'string') return err.message;
+    if (err.error_description && typeof err.error_description === 'string') return err.error_description;
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return 'Authentication failed';
+    }
+  };
+
   const signIn = async (email: string, password: string) => {
     setLoading(true);
     setError(null);
@@ -75,16 +85,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (authError) {
-        setError(authError.message);
-        throw authError;
+        const cleanMsg = parseErrorMessage(authError);
+        setError(cleanMsg);
+        throw new Error(cleanMsg);
       }
 
       if (data.user) {
         setUser(formatUser(data.user));
       }
     } catch (err: any) {
-      setError(err.message || 'Login failed');
-      throw err;
+      const cleanMsg = parseErrorMessage(err);
+      setError(cleanMsg);
+      throw new Error(cleanMsg);
     } finally {
       setLoading(false);
     }
@@ -102,24 +114,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (authError) {
-        setError(authError.message);
-        throw authError;
+        const cleanMsg = parseErrorMessage(authError);
+        setError(cleanMsg);
+        throw new Error(cleanMsg);
       }
 
       if (authData.user) {
-        await supabase.from('profiles').upsert([
+        const { error: profileError } = await supabase.from('profiles').upsert([
           {
             id: authData.user.id,
             email: email,
             name: name || null,
+            provider: 'email',
             role: 'user',
             updated_at: new Date().toISOString(),
           },
         ] as any);
+
+        if (profileError) {
+          console.warn('Profile sync notice:', profileError.message);
+        }
       }
     } catch (err: any) {
-      setError(err.message || 'Signup failed');
-      throw err;
+      const cleanMsg = parseErrorMessage(err);
+      setError(cleanMsg);
+      throw new Error(cleanMsg);
     } finally {
       setLoading(false);
     }
@@ -131,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await supabase.auth.signOut();
       setUser(null);
     } catch (err: any) {
-      setError(err.message || 'Sign out failed');
+      setError(parseErrorMessage(err));
       throw err;
     }
   };

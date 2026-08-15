@@ -1,4 +1,5 @@
 // app/(tabs)/_layout.tsx
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { HapticTab } from '../../components/haptic-tab';
 import { IconSymbol } from '../../components/ui/icon-symbol';
@@ -16,30 +17,40 @@ export default function TabLayout() {
         tabBarButton: HapticTab,
       }}
     >
-      <Tabs.Screen 
-        name="index" 
-        options={{ 
-          title: 'Home', 
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Home',
           tabBarIcon: ({ color }: { color: string }) => (
             <IconSymbol size={28} name="house.fill" color={color} />
-          ) 
-        }} 
+          )
+        }}
       />
-      <Tabs.Screen 
-        name="want" 
-        options={{ 
-          title: 'Add Chemical', 
+
+      <Tabs.Screen
+        name="want"
+        options={{
+          title: 'Add Chemical',
           tabBarIcon: ({ color }: { color: string }) => (
             <IconSymbol size={28} name="plus.app" color={color} />
-          ) 
-        }} 
+          )
+        }}
       />
       <Tabs.Screen
         name="want-view"
         options={{
           title: 'Chemicals',
           tabBarIcon: ({ color }: { color: string }) => (
-            <IconSymbol size={28} name="flask.fill" color={color} />
+            <MaterialCommunityIcons name="flask" size={28} color={color} />
+          )
+        }}
+      />
+      <Tabs.Screen
+        name="stock-out"
+        options={{
+          title: 'Stock Out',
+          tabBarIcon: ({ color }: { color: string }) => (
+            <MaterialCommunityIcons name="tray-arrow-up" size={28} color={color} />
           )
         }}
       />
@@ -47,34 +58,45 @@ export default function TabLayout() {
       <Tabs.Screen
         name="qr-demo"
         options={{
-          title: 'Stock Out',
+          title: 'Stock Entry',
           tabBarIcon: ({ color }: { color: string }) => (
-            <IconSymbol size={28} name="arrow.down.circle.fill" color={color} />
+            <IconSymbol size={28} name="stock" color={color} />
           )
         }}
       />
-      <Tabs.Screen 
-        name="profile" 
-        options={{ 
-          title: 'Profile', 
+
+      <Tabs.Screen
+        name="chemicals"
+        options={{
+          title: 'Details',
           tabBarIcon: ({ color }: { color: string }) => (
-            <IconSymbol size={28} name="person.circle.fill" color={color} />
-          ) 
-        }} 
+            <IconSymbol size={28} name="chemicals" color={color} />
+          )
+        }}
       />
-      
-      
-     
-      <Tabs.Screen 
-        name="alert" 
-        options={{ 
+
+
+      <Tabs.Screen
+        name="alert"
+        options={{
           title: 'Alerts',
           tabBarIcon: ({ color }: { color: string }) => (
             <IconSymbol size={28} name="bell.fill" color={color} />
           )
-        }} 
+        }}
       />
-      
+
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color }: { color: string }) => (
+            <IconSymbol size={28} name="person.circle.fill" color={color} />
+          )
+        }}
+      />
+
+
       <Tabs.Screen name="explore" options={{ href: null }} />
     </Tabs>
   );

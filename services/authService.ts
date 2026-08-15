@@ -39,7 +39,7 @@ export class AuthService {
 
       if (error) {
         let errorMessage = error.message;
-        
+
         switch (error.message) {
           case 'Invalid login credentials':
             errorMessage = 'Invalid email or password. Please try again.';
@@ -50,7 +50,7 @@ export class AuthService {
           default:
             errorMessage = 'Login failed. Please check your credentials and try again.';
         }
-        
+
         return { success: false, error: errorMessage };
       }
 
@@ -63,8 +63,8 @@ export class AuthService {
 
         if (profileError || !profileData) {
           console.error('Profile fetch error:', profileError);
-          return { 
-            success: true, 
+          return {
+            success: true,
             user: {
               id: data.user.id,
               email: data.user.email || '',
@@ -97,74 +97,74 @@ export class AuthService {
     }
   }
 
- 
- // Sign up with email and password
-static async signUp(email: string, password: string, fullName: string): Promise<{ success: boolean; user?: User; error?: string }> {
-  try {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
+
+  // Sign up with email and password
+  static async signUp(email: string, password: string, fullName: string): Promise<{ success: boolean; user?: User; error?: string }> {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          }
         }
-      }
-    });
+      });
 
-    if (error) {
-      let errorMessage = error.message;
-      
-      if (error.message.includes('already registered')) {
-        errorMessage = 'An account with this email already exists.';
-      } else if (error.message.includes('weak password')) {
-        errorMessage = 'Password is too weak. Please choose a stronger password.';
-      } else if (error.message.includes('valid email')) {
-        errorMessage = 'Please enter a valid email address.';
-      }
-      
-      return { success: false, error: errorMessage };
-    }
+      if (error) {
+        let errorMessage = error.message;
 
-    if (data.user) {
-      // ✅ FIX: Use 'as any' to bypass Supabase type inference issue
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert([{
+        if (error.message.includes('already registered')) {
+          errorMessage = 'An account with this email already exists.';
+        } else if (error.message.includes('weak password')) {
+          errorMessage = 'Password is too weak. Please choose a stronger password.';
+        } else if (error.message.includes('valid email')) {
+          errorMessage = 'Please enter a valid email address.';
+        }
+
+        return { success: false, error: errorMessage };
+      }
+
+      if (data.user) {
+        // ✅ FIX: Use 'as any' to bypass Supabase type inference issue
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([{
+            id: data.user.id,
+            email: data.user.email || email,
+            name: fullName,
+            role: 'user',
+          }] as any);  // ✅ Add 'as any' here
+
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          return { success: false, error: 'Account created but profile setup failed.' };
+        }
+
+        const userWithProfile: User = {
           id: data.user.id,
           email: data.user.email || email,
           name: fullName,
           role: 'user',
-        }] as any);  // ✅ Add 'as any' here
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
 
-      if (profileError) {
-        console.error('Profile creation error:', profileError);
-        return { success: false, error: 'Account created but profile setup failed.' };
+        return { success: true, user: userWithProfile };
       }
 
-      const userWithProfile: User = {
-        id: data.user.id,
-        email: data.user.email || email,
-        name: fullName,
-        role: 'user',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      return { success: true, user: userWithProfile };
+      return { success: false, error: 'Unknown error occurred' };
+    } catch (error) {
+      console.error('Sign up error:', error);
+      return { success: false, error: 'Network error. Please check your connection.' };
     }
-
-    return { success: false, error: 'Unknown error occurred' };
-  } catch (error) {
-    console.error('Sign up error:', error);
-    return { success: false, error: 'Network error. Please check your connection.' };
   }
-}
 
   // Sign out
   static async signOut(): Promise<{ success: boolean; error?: string }> {
     try {
       const { error } = await supabase.auth.signOut();
-      
+
       if (error) {
         console.error('Sign out error:', error);
         return { success: false, error: 'Failed to sign out. Please try again.' };
@@ -181,7 +181,7 @@ static async signUp(email: string, password: string, fullName: string): Promise<
   static async getCurrentUser(): Promise<{ user: User | null; error?: string }> {
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
-      
+
       if (error) {
         console.error('Get session error:', error);
         return { user: null, error: 'Failed to get session.' };
@@ -199,7 +199,7 @@ static async signUp(email: string, password: string, fullName: string): Promise<
 
       if (profileError || !profileData) {
         console.error('Profile fetch error:', profileError);
-        return { 
+        return {
           user: {
             id: session.user.id,
             email: session.user.email || '',
@@ -233,16 +233,16 @@ static async signUp(email: string, password: string, fullName: string): Promise<
   static async resetPassword(email: string): Promise<{ success: boolean; error?: string }> {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email);
-      
+
       if (error) {
         let errorMessage = error.message;
-        
+
         if (error.message.includes('not found')) {
           errorMessage = 'No account found with this email address.';
         } else {
           errorMessage = 'Failed to send reset email. Please try again.';
         }
-        
+
         return { success: false, error: errorMessage };
       }
 
@@ -277,19 +277,19 @@ static async signUp(email: string, password: string, fullName: string): Promise<
     if (password.length < 6) {
       return { isValid: false, message: 'Password must be at least 6 characters long.' };
     }
-    
+
     if (!/(?=.*[a-z])/.test(password)) {
       return { isValid: false, message: 'Password must contain at least one lowercase letter.' };
     }
-    
+
     if (!/(?=.*[A-Z])/.test(password)) {
       return { isValid: false, message: 'Password must contain at least one uppercase letter.' };
     }
-    
+
     if (!/(?=.*\d)/.test(password)) {
       return { isValid: false, message: 'Password must contain at least one number.' };
     }
-    
+
     return { isValid: true };
   }
 }
