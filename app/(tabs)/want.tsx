@@ -3,11 +3,11 @@ import { supabase } from '@/lib/supabase';
 import { useCallback, useEffect, useState } from 'react';
 
 import {
-    Alert,
+  Alert,
 
-    KeyboardAvoidingView,
+  KeyboardAvoidingView,
 
-    Platform,
+  Platform,
 } from 'react-native';
 
 
@@ -41,23 +41,24 @@ export default function WantScreen() {
   }, []);
 
   const fetchChemicals = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('chemicals')
-        .select('*')
-        .eq('is_active', true);
-      if (data) {
-        const mappedData = data.map((item: any) => ({
-          id: item.id,
-          chemicalName: item.name,
-          startDate: item.start_date,
-          endDate: item.end_date,
-          totalStock: item.current_stock.toString(),
-        }));
-        setItems(mappedData);
-      }
-    } catch (error) {
-      console.error('Error fetching chemicals:', error);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('chemicals')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_active', true);
+
+    if (data) {
+      const mappedData = data.map((item: any) => ({
+        id: item.id,
+        chemicalName: item.name,
+        startDate: item.start_date,
+        endDate: item.end_date,
+        totalStock: item.current_stock.toString(),
+      }));
+      setItems(mappedData);
     }
   };
 
@@ -98,14 +99,32 @@ export default function WantScreen() {
     }
   };
 
+  // FIX: Delete UI Refresh Delay - Added user_id check, immediate state update, and fetchChemicals call
   const deleteItem = async (id: string) => {
     try {
-      const { error } = await supabase.from('chemicals').delete().eq('id', id);
-      if (!error) {
-        setItems(prev => prev.filter(item => item.id !== id));
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Error', 'Please login first');
+        return;
       }
+
+      // Immediate local state update for instant UI refresh
+      setItems(prev => prev.filter(item => item.id !== id));
+
+      // Delete from Supabase with user_id filter for RLS compliance
+      const { error } = await supabase.from('chemicals').delete().eq('id', id).eq('user_id', user.id);
+      
+      if (error) {
+        // Revert local state if delete failed
+        await fetchChemicals();
+        throw error;
+      }
+
+      // Re-fetch to ensure consistency
+      await fetchChemicals();
     } catch (error) {
       console.error('Error deleting item:', error);
+      await fetchChemicals(); // Re-fetch on error to restore correct state
     }
   };
 
@@ -151,7 +170,7 @@ export default function WantScreen() {
 
     setStartDateObj(date);
 
-    
+
 
     if (endDateObj && !validateDateRange(date, endDateObj)) {
 
@@ -171,7 +190,7 @@ export default function WantScreen() {
 
     setEndDateObj(date);
 
-    
+
 
     if (startDateObj && !validateDateRange(startDateObj, date)) {
 
@@ -271,13 +290,13 @@ export default function WantScreen() {
 
     }
 
-    
+
 
     const startNormalized = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), startDateObj.getDate());
 
     const endNormalized = new Date(endDateObj.getFullYear(), endDateObj.getMonth(), endDateObj.getDate());
 
-    
+
 
     if (startNormalized.getTime() > endNormalized.getTime()) {
 
@@ -287,9 +306,9 @@ export default function WantScreen() {
 
     }
 
-    
 
-    if (!totalStock.trim() || !/^[0-9]+$/.test(totalStock)) {
+
+    if (!totalStock.trim() || isNaN(Number(totalStock))) {
 
       Alert.alert('Validation', 'Total stock must be a valid number');
 
@@ -369,7 +388,7 @@ export default function WantScreen() {
 
       }
 
-      
+
       fetchChemicals();
       resetForm();
 
@@ -419,38 +438,23 @@ export default function WantScreen() {
 
 
 
+  // FIX: Delete UI Refresh Delay - Ensure immediate state update and fetchChemicals call
   const onDeleteItem = useCallback((id: string) => {
-
     Alert.alert('Confirm', 'Delete this entry?', [
-
       { text: 'Cancel', style: 'cancel' },
-
       {
-
         text: 'Delete',
-
         style: 'destructive',
-
         onPress: async () => {
-
           try {
-
             await deleteItem(id);
-
             Alert.alert('Success', 'Entry deleted from Supabase ✅');
-
           } catch (error: any) {
-
             Alert.alert('Error', error.message || 'Failed to delete');
-
           }
-
         },
-
       },
-
     ]);
-
   }, [deleteItem]);
 
 

@@ -216,17 +216,20 @@ export function WantForm({
       </View>
 
       <ThemedView style={[styles.row, styles.headerRow]}>
-        <ThemedText style={[styles.cell, { flex: 2 }]} type="subtitle">
+        <ThemedText style={[styles.cell, styles.cellChemical]} type="subtitle">
           Chemical
         </ThemedText>
-        <ThemedText style={styles.cell} type="subtitle">
+        <ThemedText style={[styles.cell, styles.cellDate]} type="subtitle">
           Start
         </ThemedText>
-        <ThemedText style={styles.cell} type="subtitle">
+        <ThemedText style={[styles.cell, styles.cellDate]} type="subtitle">
           End
         </ThemedText>
-        <ThemedText style={[styles.cell, { textAlign: 'right' }]} type="subtitle">
+        <ThemedText style={[styles.cell, styles.cellStock]} type="subtitle">
           Stock
+        </ThemedText>
+        <ThemedText style={[styles.cell, styles.cellAction]} type="subtitle">
+          Action
         </ThemedText>
       </ThemedView>
     </View>
@@ -240,12 +243,16 @@ export function WantForm({
       renderItem={({ item }) => (
         <TouchableOpacity onPress={() => onSelectItem(item)}>
           <ThemedView style={styles.row}>
-            <ThemedText style={[styles.cell, { flex: 2 }]} type="defaultSemiBold">
+            <ThemedText style={[styles.cell, styles.cellChemical]} type="defaultSemiBold" numberOfLines={2}>
               {item.chemicalName}
             </ThemedText>
-            <ThemedText style={styles.cell}>{item.startDate}</ThemedText>
-            <ThemedText style={styles.cell}>{item.endDate}</ThemedText>
-            <ThemedText style={[styles.cell, { textAlign: 'right' }]}>
+            <ThemedText style={[styles.cell, styles.cellDate]} numberOfLines={1}>
+              {item.startDate}
+            </ThemedText>
+            <ThemedText style={[styles.cell, styles.cellDate]} numberOfLines={1}>
+              {item.endDate}
+            </ThemedText>
+            <ThemedText style={[styles.cell, styles.cellStock]} numberOfLines={1}>
               {item.totalStock}
             </ThemedText>
             <TouchableOpacity
@@ -403,15 +410,17 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600',
   },
+  // FIX: UI Text Overlapping - Added specific cell styles with proper flex ratios and spacing
   row: {
     flexDirection: 'row',
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#0e3305',
     borderRadius: 6,
     marginVertical: 4,
+    gap: 8,
   },
   headerRow: {
     borderTopWidth: 1,
@@ -421,6 +430,28 @@ const styles = StyleSheet.create({
   },
   cell: {
     flex: 1,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  // FIX: Specific cell styles with proper flex ratios to prevent overlapping
+  cellChemical: {
+    flex: 2.5,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  cellDate: {
+    flex: 1,
+    fontSize: 11,
+  },
+  cellStock: {
+    flex: 0.8,
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'right',
+  },
+  cellAction: {
+    flex: 0.6,
+    textAlign: 'center',
   },
   deleteBtn: {
     paddingHorizontal: 8,

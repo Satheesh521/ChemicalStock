@@ -2,9 +2,9 @@
  * Stock Out Screen - Fixed UI & Clean Code
  */
 
+import { supabase } from '@/lib/supabase';
 import { stockOutService } from '@/services/stockOutService';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -46,28 +46,48 @@ const StockOutScreen = () => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // FIX: Add user authentication check to prevent crash
   const fetchChemicalsList = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log('User not authenticated, skipping chemicals fetch');
+        setChemicals([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('chemicals')
         .select('id, name, current_stock, unit')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(500);
       if (error) throw error;
       setChemicals(data || []);
     } catch (e) {
       console.error('Failed to load chemicals for autocomplete', e);
+      setChemicals([]);
     }
   };
 
+  // FIX: Add user authentication check and better error handling to prevent crash
   const fetchStockOuts = async () => {
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log('User not authenticated, skipping stock outs fetch');
+        setStockOuts([]);
+        return;
+      }
+
       await fetchChemicalsList();
       const data = await stockOutService.getStockOuts();
       setStockOuts(data);
     } catch (error: any) {
+      console.error('Fetch Stock Outs Error:', error);
       Alert.alert('Error', error.message || 'Failed to load data');
+      setStockOuts([]); // Set empty array on error to prevent crash
     } finally {
       setLoading(false);
     }
@@ -90,6 +110,7 @@ const StockOutScreen = () => {
   const formatDate = (date: Date) =>
     date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
 
+  // FIX: Stock Out Quantity & Precision Handling - Ensure state resets properly and suggestions close
   const resetForm = () => {
     setChemicalName('');
     setMcNo('');
@@ -98,9 +119,10 @@ const StockOutScreen = () => {
     setMg('');
     setSelectedDate(new Date());
     setEditingId(null);
-    setShowSuggestions(false);
+    setShowSuggestions(false); // FIX: Close auto-complete suggestions on reset
   };
 
+  // FIX: Stock Out Quantity & Precision Handling - Combine Kg/G/Mg into precise decimal value
   const handleSaveStockOut = async () => {
     if (!chemicalName.trim() || !mcNo.trim()) {
       Alert.alert('Error', 'Chemical Name and Mc/No are required');
@@ -116,6 +138,9 @@ const StockOutScreen = () => {
       return;
     }
 
+    // FIX: Combine all units into a single precise decimal value in Kilograms
+    const totalStockKg = parsedKg + (parsedGram / 1000) + (parsedMg / 1000000);
+
     setSubmitting(true);
     try {
       const year = selectedDate.getFullYear();
@@ -129,6 +154,7 @@ const StockOutScreen = () => {
         stock_kg: parsedKg,
         stock_g: parsedGram,
         stock_mg: parsedMg,
+        total_stock_kg: totalStockKg, // FIX: Added precise total in kg
         date_out: formattedDateOut,
       };
 
@@ -140,7 +166,9 @@ const StockOutScreen = () => {
         Alert.alert('Success', 'Added Successfully!');
       }
 
+      // FIX: Ensure state resets properly after submission
       resetForm();
+      setShowSuggestions(false); // FIX: Close auto-complete suggestions
       await fetchStockOuts();
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Operation failed');
@@ -187,12 +215,12 @@ const StockOutScreen = () => {
       </View>
 
       <View style={styles.quickActions}>
-        <TouchableOpacity style={styles.quickActionBtn} onPress={() => router.push('/(tabs)')}>
+        <TouchableOpacity style={styles.quickActionBtn} onPress={() => router.push('/')}>
           <Text style={styles.quickActionText}>View Inventory</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.quickActionBtnSecondary}
-          onPress={() => router.push('/(tabs)/want')}
+          onPress={() => router.push('/want')}
         >
           <Text style={styles.quickActionTextSecondary}>Add Chemical</Text>
         </TouchableOpacity>
@@ -232,7 +260,7 @@ const StockOutScreen = () => {
                       style={styles.suggestionItem}
                       onPress={() => {
                         setChemicalName(item.name);
-                        setShowSuggestions(false);
+                        setShowSuggestions(false); // FIX: Close suggestions cleanly on selection
                       }}
                     >
                       <Text style={{ fontWeight: '600', color: '#333' }}>{item.name}</Text>
