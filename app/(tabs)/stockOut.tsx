@@ -11,12 +11,14 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
 type StockOutItem = {
@@ -29,6 +31,33 @@ type StockOutItem = {
   date_out: string;
 };
 
+// Isolated live clock component to prevent parent re-renders and TextInput focus loss
+const LiveClock = () => {
+  const [time, setTime] = useState('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <View style={clockStyles.timeDisplay}>
+      <Text style={clockStyles.timeText}>{time}</Text>
+    </View>
+  );
+};
+
+const clockStyles = StyleSheet.create({
+  timeDisplay: { backgroundColor: '#F1F8E9', padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#81C784' },
+  timeText: { color: '#2E7D32', fontSize: 16, fontWeight: '600', textAlign: 'center' },
+});
+
 const StockOutScreen = () => {
   const router = useRouter();
   const [chemicalName, setChemicalName] = useState('');
@@ -40,13 +69,9 @@ const StockOutScreen = () => {
   const [mg, setMg] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [stockOuts, setStockOuts] = useState<StockOutItem[]>([]);
-  const [currentTime, setCurrentTime] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // FIX: Add user authentication check to prevent crash
   const fetchChemicalsList = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -70,47 +95,13 @@ const StockOutScreen = () => {
     }
   };
 
-  // FIX: Add user authentication check and better error handling to prevent crash
-  const fetchStockOuts = async () => {
-    setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.log('User not authenticated, skipping stock outs fetch');
-        setStockOuts([]);
-        return;
-      }
-
-      await fetchChemicalsList();
-      const data = await stockOutService.getStockOuts();
-      setStockOuts(data);
-    } catch (error: any) {
-      console.error('Fetch Stock Outs Error:', error);
-      Alert.alert('Error', error.message || 'Failed to load data');
-      setStockOuts([]); // Set empty array on error to prevent crash
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchStockOuts();
-  }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = new Date();
-      setCurrentTime(
-        now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-      );
-    }, 1000);
-    return () => clearInterval(interval);
+    fetchChemicalsList();
   }, []);
 
   const formatDate = (date: Date) =>
     date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
 
-  // FIX: Stock Out Quantity & Precision Handling - Ensure state resets properly and suggestions close
   const resetForm = () => {
     setChemicalName('');
     setMcNo('');
@@ -119,11 +110,12 @@ const StockOutScreen = () => {
     setMg('');
     setSelectedDate(new Date());
     setEditingId(null);
-    setShowSuggestions(false); // FIX: Close auto-complete suggestions on reset
+    setShowSuggestions(false);
   };
 
-  // FIX: Stock Out Quantity & Precision Handling - Combine Kg/G/Mg into precise decimal value
   const handleSaveStockOut = async () => {
+    if (submitting) return;
+
     if (!chemicalName.trim() || !mcNo.trim()) {
       Alert.alert('Error', 'Chemical Name and Mc/No are required');
       return;
@@ -138,8 +130,28 @@ const StockOutScreen = () => {
       return;
     }
 
-    // FIX: Combine all units into a single precise decimal value in Kilograms
     const totalStockKg = parsedKg + (parsedGram / 1000) + (parsedMg / 1000000);
+
+    if (totalStockKg <= 0) {
+      Alert.alert('Validation', 'Please enter a valid stock out quantity');
+      return;
+    }
+
+    // ✅ VALIDATION: Check existing stock quantity before saving
+    const selectedChem = chemicals.find(
+      (c) => c.name.toLowerCase() === chemicalName.trim().toLowerCase()
+    );
+
+    if (selectedChem) {
+      const currentAvailable = parseFloat(selectedChem.current_stock) || 0;
+      if (totalStockKg > currentAvailable) {
+        Alert.alert(
+          'Insufficient Stock!',
+          `Available stock for ${selectedChem.name} is ${currentAvailable.toFixed(3)} ${selectedChem.unit || 'kg'}. You cannot remove ${totalStockKg.toFixed(3)} kg.`
+        );
+        return;
+      }
+    }
 
     setSubmitting(true);
     try {
@@ -149,12 +161,12 @@ const StockOutScreen = () => {
       const formattedDateOut = `${year}-${month}-${day}`;
 
       const payload = {
+        chemical_id: selectedChem ? selectedChem.id : null,
         chemical_name: chemicalName.trim(),
         mc_no: mcNo.trim(),
         stock_kg: parsedKg,
         stock_g: parsedGram,
         stock_mg: parsedMg,
-        total_stock_kg: totalStockKg, // FIX: Added precise total in kg
         date_out: formattedDateOut,
       };
 
@@ -163,55 +175,24 @@ const StockOutScreen = () => {
         Alert.alert('Success', 'Updated Successfully!');
       } else {
         await stockOutService.addStockOut(payload);
-        Alert.alert('Success', 'Added Successfully!');
+        Alert.alert('Success', 'Stock Out recorded and inventory updated!');
       }
 
-      // FIX: Ensure state resets properly after submission
       resetForm();
-      setShowSuggestions(false); // FIX: Close auto-complete suggestions
-      await fetchStockOuts();
+      setShowSuggestions(false);
+      router.push('/want');
     } catch (error: any) {
+      console.error('Stock Out Error:', error);
       Alert.alert('Error', error.message || 'Operation failed');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleEdit = (item: StockOutItem) => {
-    setChemicalName(item.chemical_name);
-    setMcNo(item.mc_no);
-    setKg(item.stock_kg.toString());
-    setGram(item.stock_g.toString());
-    setMg(item.stock_mg.toString());
-    setSelectedDate(new Date(item.date_out));
-    setEditingId(item.id);
-  };
-
-  const handleDelete = (id: string) => {
-    Alert.alert('Confirm', 'Delete this record?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await stockOutService.deleteStockOut(id);
-            setStockOuts((prev) => prev.filter((item) => item.id !== id));
-          } catch (error: any) {
-            Alert.alert('Error', error.message);
-          }
-        },
-      },
-    ]);
-  };
-
   const renderHeader = () => (
     <View style={styles.formContainer}>
       <View style={styles.header}>
-        <Text style={styles.stockCount}>Stock Outs: {stockOuts.length}</Text>
-        <TouchableOpacity style={styles.refreshBtn} onPress={fetchStockOuts}>
-          <Text style={styles.refreshText}>↻ Refresh</Text>
-        </TouchableOpacity>
+        <Text style={styles.stockCount}>Stock Out Entry</Text>
       </View>
 
       <View style={styles.quickActions}>
@@ -231,7 +212,7 @@ const StockOutScreen = () => {
       </Text>
 
       <View style={styles.row}>
-        <View style={[styles.inputContainer, { zIndex: 1000 }]}>
+        <View style={[styles.inputContainer, { zIndex: showSuggestions ? 9999 : 1, elevation: Platform.OS === 'android' ? 10 : 0 }]}>
           <Text style={styles.label}>Chemical Name *</Text>
           <View style={{ position: 'relative' }}>
             <TextInput
@@ -260,7 +241,7 @@ const StockOutScreen = () => {
                       style={styles.suggestionItem}
                       onPress={() => {
                         setChemicalName(item.name);
-                        setShowSuggestions(false); // FIX: Close suggestions cleanly on selection
+                        setShowSuggestions(false);
                       }}
                     >
                       <Text style={{ fontWeight: '600', color: '#333' }}>{item.name}</Text>
@@ -332,9 +313,7 @@ const StockOutScreen = () => {
       )}
 
       <Text style={styles.label}>Current Time</Text>
-      <View style={[styles.input, styles.timeDisplay]}>
-        <Text style={styles.timeText}>{currentTime}</Text>
-      </View>
+      <LiveClock />
 
       <View style={styles.buttonRow}>
         <TouchableOpacity style={styles.addButton} onPress={handleSaveStockOut} disabled={submitting}>
@@ -354,35 +333,14 @@ const StockOutScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <FlatList
-        data={stockOuts}
-        keyExtractor={(item) => item.id}
-        ListHeaderComponent={renderHeader}
-        refreshing={loading}
-        onRefresh={fetchStockOuts}
-        renderItem={({ item }) => (
-          <View style={styles.tableRow}>
-            <Text style={[styles.tableCell, { flex: 2 }]}>{item.chemical_name}</Text>
-            <Text style={styles.tableCell}>{item.mc_no}</Text>
-            <Text style={styles.tableCell}>
-              {item.stock_kg}kg {item.stock_g}g {item.stock_mg}mg
-            </Text>
-            <Text style={[styles.tableCell, { flex: 1.2 }]}>{item.date_out}</Text>
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              <TouchableOpacity onPress={() => handleEdit(item)} style={styles.editBtn}>
-                <Text style={styles.editText}>Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteBtn}>
-                <Text style={styles.deleteText}>Del</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-        ListEmptyComponent={<Text style={styles.emptyText}>No records found</Text>}
-        contentContainerStyle={{ padding: 16 }}
-      />
-    </SafeAreaView>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+    >
+      <SafeAreaView style={styles.container}>
+        {renderHeader()}
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -404,12 +362,10 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: '600', color: '#444', marginBottom: 6 },
   input: { borderWidth: 1, borderColor: '#81C784', borderRadius: 10, padding: 12, backgroundColor: '#fff', fontSize: 16 },
   dateText: { color: '#333', fontSize: 16 },
-  timeText: { color: '#2E7D32', fontSize: 16, fontWeight: '600' },
   unitsRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
   unitInput: { flex: 1, alignItems: 'center' },
   smallInput: { borderWidth: 1, borderColor: '#81C784', borderRadius: 10, padding: 12, textAlign: 'center', backgroundColor: '#fff', fontSize: 16 },
   unit: { marginTop: 4, fontSize: 12, color: '#666' },
-  timeDisplay: { backgroundColor: '#F1F8E9' },
   buttonRow: { flexDirection: 'row', gap: 12, marginVertical: 20 },
   addButton: { flex: 1, backgroundColor: '#2E7D32', paddingVertical: 15, borderRadius: 10, alignItems: 'center' },
   addButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },

@@ -4,7 +4,7 @@
     "slug": "chemical-stock",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/app-logo.jpeg",
     "scheme": "chemical-stock-app",
     "userInterfaceStyle": "automatic",
     "owner": "satheeshkannan",
@@ -12,15 +12,25 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.chemicalstock.app"
+      "package": "com.chemicalstock.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/app-logo.jpeg",
+        "backgroundColor": "#ffffff"
+      }
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"  
+      "favicon": "./assets/images/app-logo.jpeg"
     },
     "plugins": [
       "expo-router",
       "expo-dev-client",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Chemical Stock to access camera for scanning QR codes."
+        }
+      ],
       [
         "expo-build-properties",
         {

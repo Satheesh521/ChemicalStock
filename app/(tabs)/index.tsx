@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
   RefreshControl,
   StyleSheet,
   TextInput,
@@ -30,7 +31,6 @@ interface Chemical {
   is_active: boolean;
   hazard_class: string | null;
   created_at: string;
-  // Calculated fields
   stock_percentage: number;
 }
 
@@ -45,6 +45,9 @@ export default function ChemicalListScreen() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'low' | 'out'>(
     filter === 'low' || filter === 'out' ? (filter as 'all' | 'low' | 'out') : 'all'
   );
+  const [stockOutHistory, setStockOutHistory] = useState<any[]>([]);
+  const [showStockOutModal, setShowStockOutModal] = useState(false);
+  const [selectedChemical, setSelectedChemical] = useState<Chemical | null>(null);
 
   useEffect(() => {
     if (filter === 'low' || filter === 'out' || filter === 'all') {
@@ -65,7 +68,6 @@ export default function ChemicalListScreen() {
         return;
       }
 
-      // ✅ FIXED: Simple query without joins, with user_id filter
       const { data, error } = await supabase
         .from('chemicals')
         .select(`
@@ -82,8 +84,8 @@ export default function ChemicalListScreen() {
           hazard_class,
           created_at
         `)
-        .eq('user_id', user.id)  // ✅ Filter by logged-in user
-        .eq('is_active', true)    // ✅ Only active chemicals
+        .eq('user_id', user.id)
+        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -93,12 +95,10 @@ export default function ChemicalListScreen() {
         return;
       }
 
-      // Process data with calculated fields
       const processedData = (data || []).map((chem: any) => {
         const currentStock = parseFloat(chem.current_stock) || 0;
         const minThreshold = parseFloat(chem.min_threshold) || 0;
 
-        // Calculate stock percentage (based on min_threshold * 3 as max)
         const maxStock = minThreshold * 3 || 1;
         const stockPercentage = currentStock > 0
           ? Math.min(Math.round((currentStock / maxStock) * 100), 100)
@@ -129,30 +129,52 @@ export default function ChemicalListScreen() {
     await loadChemicals();
   };
 
+  const fetchStockOutHistory = async (chemicalId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('stock_out')
+        .select('*')
+        .eq('chemical_id', chemicalId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setStockOutHistory(data || []);
+    } catch (error: any) {
+      console.error('Error fetching stock out history:', error);
+      Alert.alert('Error', 'Failed to load stock out history');
+    }
+  };
+
+  const handleViewStockOut = (chemical: Chemical) => {
+    setSelectedChemical(chemical);
+    fetchStockOutHistory(chemical.id);
+    setShowStockOutModal(true);
+  };
+
   const handleFilterPress = (nextFilter: 'all' | 'low' | 'out') => {
     setFilterStatus(nextFilter);
     router.setParams({ filter: nextFilter });
   };
 
-  // Filter chemicals
+  // ✅ FIXED: Filter chemicals logic
   const filteredChemicals = useMemo(() => {
     let filtered = chemicals;
 
-    // Search filter
     if (searchQuery.trim()) {
       filtered = filtered.filter(chemical =>
         chemical.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
-    // Status filter
     switch (filterStatus) {
       case 'low':
+        // Show chemicals with stock > 0 AND <= min_threshold
         filtered = filtered.filter(c =>
           c.current_stock > 0 && c.current_stock <= c.min_threshold
         );
         break;
       case 'out':
+        // Show chemicals with 0 or negative stock
         filtered = filtered.filter(c => c.current_stock <= 0);
         break;
     }
@@ -198,6 +220,18 @@ export default function ChemicalListScreen() {
 
       <View style={styles.chemicalDetails}>
         <View style={styles.detailRow}>
+          <ThemedText style={styles.detailLabel}>Total Stock:</ThemedText>
+          <ThemedText style={styles.detailValue}>
+            {formatStock(item.total_stock)} {item.unit}
+          </ThemedText>
+        </View>
+        <View style={styles.detailRow}>
+          <ThemedText style={styles.detailLabel}>Current Stock:</ThemedText>
+          <ThemedText style={[styles.detailValue, styles.currentStockValue]}>
+            {formatStock(item.current_stock)} {item.unit}
+          </ThemedText>
+        </View>
+        <View style={styles.detailRow}>
           <ThemedText style={styles.detailLabel}>Min Threshold:</ThemedText>
           <ThemedText style={styles.detailValue}>
             {formatStock(item.min_threshold)} {item.unit}
@@ -218,6 +252,14 @@ export default function ChemicalListScreen() {
           </ThemedText>
         </View>
       )}
+
+      <TouchableOpacity
+        style={styles.stockOutButton}
+        onPress={() => handleViewStockOut(item)}
+      >
+        <Ionicons name="list-outline" size={16} color="#2E7D32" />
+        <ThemedText style={styles.stockOutButtonText}>View Stock Out History</ThemedText>
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 
@@ -227,7 +269,6 @@ export default function ChemicalListScreen() {
         Chemical Inventory
       </ThemedText>
 
-      {/* Search Bar */}
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#6c757d" />
         <TextInput
@@ -239,7 +280,7 @@ export default function ChemicalListScreen() {
         />
       </View>
 
-      {/* Filter Tabs */}
+      {/* ✅ FIXED: Filter Tabs Counts */}
       <View style={styles.filterContainer}>
         {[
           { key: 'all', label: 'All', count: chemicals.length },
@@ -269,8 +310,8 @@ export default function ChemicalListScreen() {
                 filterStatus === filter.key && styles.activeFilterTabText,
               ]}>
               {filter.label}
-              {filter.count > 0 && (
-                <ThemedText style={styles.filterCount}>({filter.count})</ThemedText>
+              {filter.count >= 0 && (
+                <ThemedText style={styles.filterCount}> ({filter.count})</ThemedText>
               )}
             </ThemedText>
           </TouchableOpacity>
@@ -309,6 +350,59 @@ export default function ChemicalListScreen() {
           </View>
         }
       />
+
+      <Modal
+        visible={showStockOutModal}
+        animationType="slide"
+        onRequestClose={() => setShowStockOutModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <ThemedText style={styles.modalTitle} type="subtitle">
+              Stock Out History
+            </ThemedText>
+            <TouchableOpacity onPress={() => setShowStockOutModal(false)}>
+              <Ionicons name="close" size={28} color="#000" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.modalChemicalInfo}>
+            <ThemedText style={styles.modalChemicalName}>
+              {selectedChemical?.name}
+            </ThemedText>
+            <ThemedText style={styles.modalChemicalStock}>
+              Current: {formatStock(selectedChemical?.current_stock || 0)} {selectedChemical?.unit}
+            </ThemedText>
+          </View>
+
+          <FlatList
+            data={stockOutHistory}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.modalList}
+            ListEmptyComponent={
+              <View style={styles.modalEmpty}>
+                <Ionicons name="document-text-outline" size={48} color="#6c757d" />
+                <ThemedText style={styles.modalEmptyText}>No stock out records</ThemedText>
+              </View>
+            }
+            renderItem={({ item }) => (
+              <View style={styles.stockOutItem}>
+                <View style={styles.stockOutItemHeader}>
+                  <ThemedText style={styles.stockOutDate}>
+                    {new Date(item.date_out).toLocaleDateString()}
+                  </ThemedText>
+                  <ThemedText style={styles.stockOutQuantity}>
+                    -{item.stock_kg}kg {item.stock_g}g {item.stock_mg}mg
+                  </ThemedText>
+                </View>
+                <ThemedText style={styles.stockOutMcNo}>
+                  MC/No: {item.mc_no}
+                </ThemedText>
+              </View>
+            )}
+          />
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -472,6 +566,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#000',
   },
+  currentStockValue: {
+    color: '#2E7D32',
+    fontWeight: '700',
+  },
   dateSection: {
     marginTop: 8,
     paddingTop: 8,
@@ -493,5 +591,93 @@ const styles = StyleSheet.create({
     color: '#6c757d',
     marginTop: 16,
     textAlign: 'center',
+  },
+  stockOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E8F5E9',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#2E7D32',
+  },
+  stockOutButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2E7D32',
+    marginLeft: 6,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  modalChemicalInfo: {
+    padding: 20,
+    backgroundColor: '#f8f9fa',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  modalChemicalName: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  modalChemicalStock: {
+    fontSize: 16,
+    color: '#2E7D32',
+    fontWeight: '500',
+  },
+  modalList: {
+    padding: 16,
+  },
+  modalEmpty: {
+    alignItems: 'center',
+    paddingVertical: 64,
+  },
+  modalEmptyText: {
+    fontSize: 16,
+    color: '#6c757d',
+    marginTop: 12,
+  },
+  stockOutItem: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  stockOutItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  stockOutDate: {
+    fontSize: 14,
+    color: '#6c757d',
+  },
+  stockOutQuantity: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#dc3545',
+  },
+  stockOutMcNo: {
+    fontSize: 13,
+    color: '#495057',
   },
 });

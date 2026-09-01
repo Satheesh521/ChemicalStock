@@ -1,10 +1,11 @@
+// D:\ReactNative\ChemicalStock\app\login.tsx
+
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -12,58 +13,125 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 
-const { width } = Dimensions.get('window');
+// =====================================================
+// COLOUR SCHEME
+// =====================================================
 
-// Color Scheme - Green Professional Theme
 const COLORS = {
-  primary: '#1B7B3C', // Deep Green
-  primaryLight: '#2FA85F', // Medium Green
-  primaryLightest: '#E8F5E9', // Very Light Green
-  accent: '#FF6B6B', // Red accent for errors/warnings
+  primary: '#1B7B3C',
+  primaryLight: '#2FA85F',
+  primaryLightest: '#E8F5E9',
+
+  accent: '#FF6B6B',
   accentLight: '#FFE8E8',
+
   text: '#212121',
   textLight: '#757575',
   textPlaceholder: '#BDBDBD',
+
   border: '#E0E0E0',
   background: '#FFFFFF',
+
   success: '#4CAF50',
 };
+
+// =====================================================
+// AUTHORISED EMAILS
+// =====================================================
+
+// FULL ACCESS USERS
+const FULL_ACCESS_EMAILS = [
+  'mpadmin605@gmail.com',
+  'mpwonar605@gmail.com',
+  'mpmanager605@gmail.com',
+  'mplab605@gmail.com',
+  'mpdyesincharge605@gmail.com',
+];
+
+// RESTRICTED ACCESS USERS
+const RESTRICTED_ACCESS_EMAILS = [
+  'mpsupervisor605@gmail.com',
+  'mpsample605@gmail.com',
+];
+
+// =====================================================
+// EMAIL ACCESS CHECK
+// =====================================================
+
+const getEmailAccess = (emailValue: string) => {
+  const normalizedEmail = emailValue.toLowerCase().trim();
+
+  if (FULL_ACCESS_EMAILS.includes(normalizedEmail)) {
+    return 'full';
+  }
+
+  if (RESTRICTED_ACCESS_EMAILS.includes(normalizedEmail)) {
+    return 'restricted';
+  }
+
+  return null;
+};
+
+// =====================================================
+// LOGIN SCREEN
+// =====================================================
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [nameError, setNameError] = useState('');
 
-  const { signIn, signUp, loading, error, clearError } = useAuth();
+  const {
+    signIn,
+    signUp,
+    loading,
+    error,
+    clearError,
+  } = useAuth();
+
   const router = useRouter();
+
+  // =====================================================
+  // EMAIL VALIDATION
+  // =====================================================
 
   const validateEmail = (emailValue: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     return emailRegex.test(emailValue);
   };
 
+  // =====================================================
+  // FORM VALIDATION
+  // =====================================================
+
   const validateForm = () => {
     let isValid = true;
+
     setEmailError('');
     setPasswordError('');
     setNameError('');
 
+    // EMAIL
     if (!email.trim()) {
       setEmailError('Email is required');
       isValid = false;
-    } else if (!validateEmail(email)) {
+    } else if (!validateEmail(email.trim())) {
       setEmailError('Please enter a valid email');
       isValid = false;
     }
 
+    // PASSWORD
     if (!password.trim()) {
       setPasswordError('Password is required');
       isValid = false;
@@ -72,6 +140,7 @@ export default function LoginScreen() {
       isValid = false;
     }
 
+    // NAME - SIGNUP ONLY
     if (!isLogin) {
       if (!name.trim()) {
         setNameError('Full name is required');
@@ -85,63 +154,181 @@ export default function LoginScreen() {
     return isValid;
   };
 
+  // =====================================================
+  // SUBMIT
+  // =====================================================
+
   const handleSubmit = async () => {
     clearError();
-    if (!validateForm()) return;
+
+    // First validate form
+    if (!validateForm()) {
+      return;
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // ===================================================
+    // IMPORTANT SECURITY CHECK
+    // ===================================================
+    // Only authorised emails are allowed.
+    //
+    // Any other email:
+    // LOGIN  -> BLOCK
+    // SIGNUP -> BLOCK
+    // ===================================================
+
+    const accessType = getEmailAccess(normalizedEmail);
+
+    if (!accessType) {
+      Alert.alert(
+        'Access Denied',
+        'This email address is not authorised to access ChemMaintain.'
+      );
+
+      return;
+    }
 
     try {
+      // =================================================
+      // LOGIN
+      // =================================================
+
       if (isLogin) {
-        // ✅ LOGIN
-        await signIn(email.trim(), password);
-
-        // Success - force redirect to tabs
-        setTimeout(() => {
-          router.replace('/(tabs)');
-        }, 100);
-      } else {
-        // ✅ SIGNUP
-        await signUp(email.trim(), password, name.trim());
-
-        Alert.alert(
-          'Success',
-          'Account created successfully! Please login now.',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                setIsLogin(true);
-                setEmail('');
-                setPassword('');
-                setName('');
-              },
-            },
-          ]
+        const loggedUser = await signIn(
+          normalizedEmail,
+          password
         );
+
+        // Login failed / no user returned
+        if (!loggedUser) {
+          throw new Error(
+            'Unable to login. Please check your email and password.'
+          );
+        }
+
+        // =================================================
+        // SECOND SECURITY CHECK
+        // =================================================
+        // Do NOT trust database role here.
+        // Email whitelist decides access.
+        // =================================================
+
+        const loggedInEmail =
+          loggedUser.email?.toLowerCase().trim() || '';
+
+        const loggedInAccess =
+          getEmailAccess(loggedInEmail);
+
+        // Somehow logged-in email is not authorised
+        if (!loggedInAccess) {
+          Alert.alert(
+            'Access Denied',
+            'This account is not authorised to access ChemMaintain.'
+          );
+
+          return;
+        }
+
+        // =================================================
+        // FULL ACCESS
+        // =================================================
+
+        if (loggedInAccess === 'full') {
+          router.replace('/(tabs)' as any);
+          return;
+        }
+
+        // =================================================
+        // RESTRICTED ACCESS
+        // =================================================
+
+        if (loggedInAccess === 'restricted') {
+          router.replace('/(tabs)' as any);
+          return;
+        }
+
+        return;
       }
+
+      // =================================================
+      // SIGNUP
+      // =================================================
+
+      // Only approved emails can create an account.
+      await signUp(
+        normalizedEmail,
+        password,
+        name.trim()
+      );
+
+      Alert.alert(
+        'Success',
+        'Account created successfully! Please login now.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              setIsLogin(true);
+
+              setEmail('');
+              setPassword('');
+              setName('');
+
+              setEmailError('');
+              setPasswordError('');
+              setNameError('');
+
+              clearError();
+            },
+          },
+        ]
+      );
     } catch (err: any) {
       console.error('❌ Submit error:', err);
-      const displayMessage = typeof err === 'string'
-        ? err
-        : err?.message || 'Please check your email and password';
 
-      Alert.alert(isLogin ? 'Login Failed' : 'Signup Failed', displayMessage);
+      const displayMessage =
+        typeof err === 'string'
+          ? err
+          : err?.message ||
+            'Please check your email and password.';
+
+      Alert.alert(
+        isLogin ? 'Login Failed' : 'Signup Failed',
+        displayMessage
+      );
     }
   };
 
+  // =====================================================
+  // LOGIN / SIGNUP TOGGLE
+  // =====================================================
+
   const toggleAuthMode = () => {
     setIsLogin(!isLogin);
+
     setEmail('');
     setPassword('');
     setName('');
+
     setEmailError('');
     setPasswordError('');
     setNameError('');
+
     clearError();
   };
 
+  // =====================================================
+  // UI
+  // =====================================================
+
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={
+        Platform.OS === 'ios'
+          ? 'padding'
+          : 'height'
+      }
       style={styles.container}
     >
       <ScrollView
@@ -149,189 +336,376 @@ export default function LoginScreen() {
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        {/* Header Section */}
+
+        {/* =================================================
+            HEADER
+        ================================================= */}
+
         <View style={styles.headerSection}>
+
           <View style={styles.logoContainer}>
             <View style={styles.logoCircle}>
-              <Text style={styles.logoIcon}>🧪</Text>
+              <Text style={styles.logoIcon}>
+                🧪
+              </Text>
             </View>
           </View>
-          <Text style={styles.appName}>ChemMaintain</Text>
-          <Text style={styles.appTagline}>Chemical Stock Maintain App</Text>
+
+          <Text style={styles.appName}>
+            ChemMaintain
+          </Text>
+
+          <Text style={styles.appTagline}>
+            Chemical Stock Maintain App
+          </Text>
+
           <Text style={styles.welcomeText}>
-            {isLogin ? 'Welcome Back' : 'Create Your Account'}
+            {isLogin
+              ? 'Welcome Back'
+              : 'Create Your Account'}
           </Text>
+
           <Text style={styles.subtitleText}>
-            {isLogin ? 'Sign in to your work account' : 'Join us to manage your chemical inventory'}
+            {isLogin
+              ? 'Sign in to your authorised work account'
+              : 'Create an authorised work account'}
           </Text>
+
         </View>
 
-        {/* Form Section */}
+        {/* =================================================
+            FORM
+        ================================================= */}
+
         <View style={styles.formSection}>
-          {/* Name Field (for signup) */}
+
+          {/* NAME - SIGNUP ONLY */}
+
           {!isLogin && (
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Full Name</Text>
-              <View style={[styles.inputContainer, nameError && styles.inputError]}>
-                <Text style={styles.inputIcon}>👤</Text>
+
+              <Text style={styles.label}>
+                Full Name
+              </Text>
+
+              <View
+                style={[
+                  styles.inputContainer,
+                  nameError
+                    ? styles.inputError
+                    : null,
+                ]}
+              >
+
+                <Text style={styles.inputIcon}>
+                  👤
+                </Text>
+
                 <TextInput
                   style={styles.input}
                   placeholder="Enter your full name"
-                  placeholderTextColor={COLORS.textPlaceholder}
+                  placeholderTextColor={
+                    COLORS.textPlaceholder
+                  }
                   value={name}
                   onChangeText={(text) => {
                     setName(text);
-                    if (text.trim().length >= 3) setNameError('');
+
+                    if (text.trim().length >= 3) {
+                      setNameError('');
+                    }
                   }}
                   editable={!loading}
                   maxLength={50}
                 />
+
               </View>
-              {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
+
+              {nameError ? (
+                <Text style={styles.errorText}>
+                  {nameError}
+                </Text>
+              ) : null}
+
             </View>
           )}
 
-          {/* Email Field */}
+          {/* EMAIL */}
+
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Work Email</Text>
-            <View style={[styles.inputContainer, emailError && styles.inputError]}>
-              <Text style={styles.inputIcon}>✉️</Text>
+
+            <Text style={styles.label}>
+              Work Email
+            </Text>
+
+            <View
+              style={[
+                styles.inputContainer,
+                emailError
+                  ? styles.inputError
+                  : null,
+              ]}
+            >
+
+              <Text style={styles.inputIcon}>
+                ✉️
+              </Text>
+
               <TextInput
                 style={styles.input}
                 placeholder="your.email@company.com"
-                placeholderTextColor={COLORS.textPlaceholder}
+                placeholderTextColor={
+                  COLORS.textPlaceholder
+                }
                 value={email}
                 onChangeText={(text) => {
                   setEmail(text);
-                  if (validateEmail(text)) setEmailError('');
+
+                  if (validateEmail(text.trim())) {
+                    setEmailError('');
+                  }
                 }}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
                 editable={!loading}
               />
+
             </View>
-            {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+
+            {emailError ? (
+              <Text style={styles.errorText}>
+                {emailError}
+              </Text>
+            ) : null}
+
           </View>
 
-          {/* Password Field */}
+          {/* PASSWORD */}
+
           <View style={styles.formGroup}>
+
             <View style={styles.passwordHeader}>
-              <Text style={styles.label}>Password</Text>
+
+              <Text style={styles.label}>
+                Password
+              </Text>
+
               {isLogin && (
                 <TouchableOpacity>
-                  <Text style={styles.forgotPasswordLink}>Forgot?</Text>
+                  <Text
+                    style={
+                      styles.forgotPasswordLink
+                    }
+                  >
+                    Forgot?
+                  </Text>
                 </TouchableOpacity>
               )}
+
             </View>
-            <View style={[styles.inputContainer, passwordError && styles.inputError]}>
-              <Text style={styles.inputIcon}>🔒</Text>
+
+            <View
+              style={[
+                styles.inputContainer,
+                passwordError
+                  ? styles.inputError
+                  : null,
+              ]}
+            >
+
+              <Text style={styles.inputIcon}>
+                🔒
+              </Text>
+
               <TextInput
                 style={styles.input}
                 placeholder="Enter your password"
-                placeholderTextColor={COLORS.textPlaceholder}
+                placeholderTextColor={
+                  COLORS.textPlaceholder
+                }
                 value={password}
                 onChangeText={(text) => {
                   setPassword(text);
-                  if (text.length >= 6) setPasswordError('');
+
+                  if (text.length >= 6) {
+                    setPasswordError('');
+                  }
                 }}
                 secureTextEntry={!showPassword}
                 editable={!loading}
               />
+
               <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
+                onPress={() =>
+                  setShowPassword(!showPassword)
+                }
                 disabled={!password}
               >
-                <Text style={styles.eyeIcon}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+
+                <Text style={styles.eyeIcon}>
+                  {showPassword
+                    ? '👁️'
+                    : '👁️‍🗨️'}
+                </Text>
+
               </TouchableOpacity>
+
             </View>
-            {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+
+            {passwordError ? (
+              <Text style={styles.errorText}>
+                {passwordError}
+              </Text>
+            ) : null}
+
           </View>
 
-          {/* Server Error */}
+          {/* SERVER ERROR */}
+
           {error && (
-            <View style={styles.serverErrorContainer}>
-              <Text style={styles.serverErrorText}>⚠️ {error}</Text>
+            <View
+              style={
+                styles.serverErrorContainer
+              }
+            >
+              <Text
+                style={styles.serverErrorText}
+              >
+                ⚠️ {error}
+              </Text>
             </View>
           )}
 
-          {/* Submit Button */}
+          {/* SUBMIT BUTTON */}
+
           <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+            style={[
+              styles.submitButton,
+              loading
+                ? styles.submitButtonDisabled
+                : null,
+            ]}
             onPress={handleSubmit}
             disabled={loading}
             activeOpacity={0.8}
           >
+
             {loading ? (
-              <ActivityIndicator size="small" color={COLORS.background} />
+              <ActivityIndicator
+                size="small"
+                color={COLORS.background}
+              />
             ) : (
-              <Text style={styles.submitButtonText}>
-                {isLogin ? 'LOGIN' : 'CREATE ACCOUNT'}
+              <Text
+                style={styles.submitButtonText}
+              >
+                {isLogin
+                  ? 'LOGIN'
+                  : 'CREATE ACCOUNT'}
               </Text>
             )}
+
           </TouchableOpacity>
 
-          {/* Social logins removed as requested */}
         </View>
 
-        {/* Footer Section */}
+        {/* =================================================
+            FOOTER
+        ================================================= */}
+
         <View style={styles.footerSection}>
+
           <View style={styles.toggleContainer}>
+
             <Text style={styles.toggleText}>
-              {isLogin ? "New user? " : "Already have an account? "}
+              {isLogin
+                ? 'New user? '
+                : 'Already have an account? '}
             </Text>
-            <TouchableOpacity onPress={toggleAuthMode} disabled={loading}>
+
+            <TouchableOpacity
+              onPress={toggleAuthMode}
+              disabled={loading}
+            >
+
               <Text style={styles.toggleLink}>
-                {isLogin ? 'Register' : 'Login'}
+                {isLogin
+                  ? 'Register'
+                  : 'Login'}
               </Text>
+
             </TouchableOpacity>
+
           </View>
 
-          {/* Terms */}
+          {/* TERMS */}
+
           <Text style={styles.termsText}>
             By continuing, you agree to our{' '}
-            <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
-            <Text style={styles.termsLink}>Privacy Policy</Text>
+            <Text style={styles.termsLink}>
+              Terms of Service
+            </Text>{' '}
+            and{' '}
+            <Text style={styles.termsLink}>
+              Privacy Policy
+            </Text>
           </Text>
+
         </View>
+
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
+// =====================================================
+// STYLES
+// =====================================================
+
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
+
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
 
-  // Header Section
+  // ===================================================
+  // HEADER
+  // ===================================================
+
   headerSection: {
     alignItems: 'center',
     marginBottom: 40,
     marginTop: 20,
   },
+
   logoContainer: {
     marginBottom: 20,
   },
+
   logoCircle: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: COLORS.primaryLightest,
+    backgroundColor:
+      COLORS.primaryLightest,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: COLORS.primary,
   },
+
   logoIcon: {
     fontSize: 40,
   },
+
   appName: {
     fontSize: 28,
     fontWeight: '700',
@@ -339,6 +713,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     letterSpacing: 0.5,
   },
+
   appTagline: {
     fontSize: 12,
     fontWeight: '500',
@@ -347,31 +722,39 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     textTransform: 'uppercase',
   },
+
   welcomeText: {
     fontSize: 22,
     fontWeight: '600',
     color: COLORS.text,
     marginBottom: 8,
   },
+
   subtitleText: {
     fontSize: 14,
     color: COLORS.textLight,
     textAlign: 'center',
   },
 
-  // Form Section
+  // ===================================================
+  // FORM
+  // ===================================================
+
   formSection: {
     marginBottom: 30,
   },
+
   formGroup: {
     marginBottom: 20,
   },
+
   label: {
     fontSize: 14,
     fontWeight: '600',
     color: COLORS.text,
     marginBottom: 8,
   },
+
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -382,14 +765,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFAFA',
     height: 50,
   },
+
   inputError: {
     borderColor: COLORS.accent,
     backgroundColor: COLORS.accentLight,
   },
+
   inputIcon: {
     fontSize: 18,
     marginRight: 10,
   },
+
   input: {
     flex: 1,
     fontSize: 15,
@@ -397,29 +783,36 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     paddingVertical: 0,
   },
+
   eyeIcon: {
     fontSize: 18,
     marginLeft: 8,
   },
+
   errorText: {
     fontSize: 12,
     color: COLORS.accent,
     marginTop: 6,
     fontWeight: '500',
   },
+
   passwordHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
+
   forgotPasswordLink: {
     fontSize: 12,
     fontWeight: '600',
     color: COLORS.primary,
   },
 
-  // Server Error
+  // ===================================================
+  // SERVER ERROR
+  // ===================================================
+
   serverErrorContainer: {
     backgroundColor: COLORS.accentLight,
     borderLeftWidth: 4,
@@ -428,13 +821,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 16,
   },
+
   serverErrorText: {
     fontSize: 13,
     fontWeight: '600',
     color: COLORS.accent,
   },
 
-  // Submit Button
+  // ===================================================
+  // SUBMIT BUTTON
+  // ===================================================
+
   submitButton: {
     backgroundColor: COLORS.primary,
     height: 52,
@@ -442,15 +839,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
+
     shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+
     elevation: 5,
   },
+
   submitButtonDisabled: {
     opacity: 0.7,
   },
+
   submitButtonText: {
     fontSize: 16,
     fontWeight: '700',
@@ -458,72 +862,35 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  // Divider
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: COLORS.border,
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    fontSize: 12,
-    color: COLORS.textLight,
-    fontWeight: '500',
-  },
+  // ===================================================
+  // FOOTER
+  // ===================================================
 
-  // Social Buttons
-  socialButtonsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  socialButton: {
-    flex: 1,
-    flexDirection: 'row',
-    height: 48,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FAFAFA',
-  },
-  socialIcon: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  socialButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-
-  // Footer Section
   footerSection: {
     alignItems: 'center',
     paddingTop: 20,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
   },
+
   toggleContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     marginBottom: 16,
   },
+
   toggleText: {
     fontSize: 14,
     color: COLORS.textLight,
     fontWeight: '500',
   },
+
   toggleLink: {
     fontSize: 14,
     fontWeight: '700',
     color: COLORS.primary,
   },
+
   termsText: {
     fontSize: 11,
     color: COLORS.textLight,
@@ -531,10 +898,10 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     fontWeight: '400',
   },
+
   termsLink: {
     color: COLORS.primary,
     fontWeight: '600',
   },
-});
 
-// sk 
+});

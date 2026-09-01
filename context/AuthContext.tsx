@@ -14,7 +14,7 @@ type AuthContextType = {
   user: User | null;
   loading: boolean;
   error: string | null;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<User | undefined>;
   signUp: (email: string, password: string, name?: string) => Promise<void>;
   signOut: () => Promise<void>;
   clearError: () => void;
@@ -38,10 +38,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   };
 
+  // Helper function to fetch profile and merge user data
+  const getUserWithProfile = async (sessionUser: any): Promise<User> => {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', sessionUser.id)
+        .single();
+
+      return formatUser(sessionUser, profile);
+    } catch {
+      return formatUser(sessionUser);
+    }
+  };
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
-        setUser(formatUser(session.user));
+        const fullUser = await getUserWithProfile(session.user);
+        setUser(fullUser);
       } else {
         setUser(null);
       }
@@ -50,7 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        setUser(formatUser(session.user));
+        const fullUser = await getUserWithProfile(session.user);
+        setUser(fullUser);
       } else {
         setUser(null);
       }
@@ -74,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string): Promise<User | undefined> => {
     setLoading(true);
     setError(null);
 
@@ -91,7 +108,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (data.user) {
-        setUser(formatUser(data.user));
+        const fullUser = await getUserWithProfile(data.user);
+        setUser(fullUser);
+        return fullUser;
       }
     } catch (err: any) {
       const cleanMsg = parseErrorMessage(err);
