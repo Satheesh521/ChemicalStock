@@ -1,14 +1,16 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Camera, CameraView } from 'expo-camera';
+import { BarcodeScanningResult, Camera, CameraView } from 'expo-camera';
 import { useEffect, useState } from 'react';
 import {
-    Alert,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    Vibration,
-    View,
+  Alert,
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  Vibration,
+  View,
+  ViewStyle,
 } from 'react-native';
 
 interface QRScannerProps {
@@ -52,7 +54,7 @@ export function QRScanner({ onScanSuccess, onClose, visible }: QRScannerProps) {
     }
   }, [visible]);
 
-  const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
+  const handleBarCodeScanned = (result: BarcodeScanningResult) => {
     if (scanned) return;
     
     setScanned(true);
@@ -60,7 +62,7 @@ export function QRScanner({ onScanSuccess, onClose, visible }: QRScannerProps) {
 
     try {
       // Parse QR code data
-      const chemicalData = parseQRCode(data);
+      const chemicalData = parseQRCode(result.data);
       
       // Validate data
       const validation = validateChemicalData(chemicalData);
@@ -93,6 +95,12 @@ export function QRScanner({ onScanSuccess, onClose, visible }: QRScannerProps) {
     // Format 1: Custom chemical format
     if (qrData.startsWith('CHEM:')) {
       const parts = qrData.substring(5).split('|');
+      const safetyLevelValue = parts[6];
+      const validSafetyLevels: Array<'low' | 'medium' | 'high' | 'extreme'> = ['low', 'medium', 'high', 'extreme'];
+      const safetyLevel = validSafetyLevels.includes(safetyLevelValue as any) 
+        ? (safetyLevelValue as 'low' | 'medium' | 'high' | 'extreme')
+        : 'medium';
+      
       return {
         name: parts[0] || 'Unknown Chemical',
         batchNumber: parts[1] || 'N/A',
@@ -100,7 +108,7 @@ export function QRScanner({ onScanSuccess, onClose, visible }: QRScannerProps) {
         unit: parts[3] || 'kg',
         expiryDate: parts[4] || undefined,
         vendor: parts[5] || undefined,
-        safetyLevel: (parts[6] as any) || 'medium',
+        safetyLevel: safetyLevel,
         qrCode: qrData,
       };
     }
@@ -109,6 +117,12 @@ export function QRScanner({ onScanSuccess, onClose, visible }: QRScannerProps) {
     if (qrData.startsWith('{') && qrData.endsWith('}')) {
       try {
         const parsed = JSON.parse(qrData);
+        const safetyLevelValue = parsed.safetyLevel || parsed.danger;
+        const validSafetyLevels: Array<'low' | 'medium' | 'high' | 'extreme'> = ['low', 'medium', 'high', 'extreme'];
+        const safetyLevel = validSafetyLevels.includes(safetyLevelValue as any)
+          ? (safetyLevelValue as 'low' | 'medium' | 'high' | 'extreme')
+          : 'medium';
+        
         return {
           name: parsed.name || parsed.chemicalName || 'Unknown Chemical',
           batchNumber: parsed.batchNumber || parsed.batch || 'N/A',
@@ -116,7 +130,7 @@ export function QRScanner({ onScanSuccess, onClose, visible }: QRScannerProps) {
           unit: parsed.unit || 'kg',
           expiryDate: parsed.expiryDate || parsed.expiry,
           vendor: parsed.vendor,
-          safetyLevel: parsed.safetyLevel || parsed.danger || 'medium',
+          safetyLevel: safetyLevel,
           qrCode: qrData,
         };
       } catch {
@@ -238,7 +252,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
-  },
+  } as ViewStyle,
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -247,26 +261,26 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingBottom: 20,
     backgroundColor: 'rgba(0,0,0,0.7)',
-  },
+  } as ViewStyle,
   closeButton: {
     width: 24,
     height: 24,
     justifyContent: 'center',
     alignItems: 'center',
-  },
+  } as ViewStyle,
   closeIcon: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
-  },
+  } as TextStyle,
   title: {
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
-  },
+  } as TextStyle,
   camera: {
     flex: 1,
-  },
+  } as ViewStyle,
   overlay: {
     position: 'absolute',
     top: '50%',
@@ -274,44 +288,44 @@ const styles = StyleSheet.create({
     transform: [{ translateX: -150 }, { translateY: -150 }],
     width: 300,
     height: 300,
-  },
+  } as ViewStyle,
   scanFrame: {
     flex: 1,
     borderWidth: 2,
     borderColor: 'rgba(73, 209, 55, 0.3)',
     borderRadius: 12,
     overflow: 'hidden',
-  },
+  } as ViewStyle,
   corner: {
     position: 'absolute',
     width: 20,
     height: 20,
     borderColor: '#49d137',
-  },
+  } as ViewStyle,
   topLeft: {
     top: -1,
     left: -1,
     borderTopWidth: 3,
     borderLeftWidth: 3,
-  },
+  } as ViewStyle,
   topRight: {
     top: -1,
     right: -1,
     borderTopWidth: 3,
     borderRightWidth: 3,
-  },
+  } as ViewStyle,
   bottomLeft: {
     bottom: -1,
     left: -1,
     borderBottomWidth: 3,
     borderLeftWidth: 3,
-  },
+  } as ViewStyle,
   bottomRight: {
     bottom: -1,
     right: -1,
     borderBottomWidth: 3,
     borderRightWidth: 3,
-  },
+  } as ViewStyle,
   scanLine: {
     position: 'absolute',
     top: '50%',
@@ -320,7 +334,7 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: '#49d137',
     transform: [{ translateY: -1 }],
-  },
+  } as ViewStyle,
   footer: {
     position: 'absolute',
     bottom: 50,
@@ -328,55 +342,55 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     paddingHorizontal: 20,
-  },
+  } as ViewStyle,
   instruction: {
     color: '#fff',
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 8,
     fontWeight: '500',
-  },
+  } as TextStyle,
   subInstruction: {
     color: 'rgba(255,255,255,0.7)',
     fontSize: 12,
     textAlign: 'center',
     marginBottom: 20,
-  },
+  } as TextStyle,
   scanAgainButton: {
     backgroundColor: '#49d137',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
-  },
+  } as ViewStyle,
   scanAgainText: {
     color: '#fff',
     fontWeight: '600',
-  },
+  } as TextStyle,
   errorIcon: {
     fontSize: 64,
     marginBottom: 20,
-  },
+  } as TextStyle,
   errorText: {
     color: '#dc3545',
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 10,
-  },
+  } as TextStyle,
   errorSubtext: {
     color: '#6c757d',
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 20,
     paddingHorizontal: 40,
-  },
+  } as TextStyle,
   button: {
     backgroundColor: '#007AFF',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
-  },
+  } as ViewStyle,
   buttonText: {
     color: '#fff',
     fontWeight: '600',
-  },
+  } as TextStyle,
 });

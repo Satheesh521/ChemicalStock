@@ -1,51 +1,74 @@
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase'; // Ungal Supabase import path
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { HapticTab } from '../../components/haptic-tab';
-import { IconSymbol } from '../../components/ui/icon-symbol';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
+import HapticTab from '../../components/haptic-tab';
 import { Colors } from '../../constants/theme';
 import { useColorScheme } from '../../hooks/use-color-scheme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const [role, setRole] = useState<string | null>(null);
+  const [roleLoading, setRoleLoading] = useState(true);
 
-  const userEmail = user?.email?.toLowerCase().trim() || '';
-  const userRole = (user as any)?.role?.toLowerCase().trim() || '';
+  useEffect(() => {
+    async function fetchRole() {
+      if (user?.id) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
 
-  // ================================================
-  // FULL ACCESS EMAILS
-  // ================================================
-  const FULL_ACCESS_EMAILS = [
-    'mpadmin605@gmail.com',
-    'mpwonar605@gmail.com',
-    'mpmanager605@gmail.com',
-    'mplab605@gmail.com',
-    'mpdyesincharge605@gmail.com',
-  ];
+          if (!error && data) {
+            setRole(data.role?.toLowerCase());
+          }
+        } catch (e) {
+          console.error('Error fetching role:', e);
+        } finally {
+          setRoleLoading(false);
+        }
+      } else {
+        setRoleLoading(false);
+      }
+    }
+    fetchRole();
+  }, [user]);
 
-  // ================================================
-  // RESTRICTED ACCESS EMAILS
-  // ================================================
-  const RESTRICTED_ACCESS_EMAILS = [
-    'mpsupervisor605@gmail.com',
-    'mpsample605@gmail.com',
-  ];
+  if (authLoading || roleLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
 
-  // ================================================
-  // CHECK ACCESS PERMISSIONS
-  // ================================================
-  const isFullAccessUser =
-    userRole === 'admin' ||
-    userRole === 'manager' ||
-    FULL_ACCESS_EMAILS.includes(userEmail);
+  // Database Role Based Conditions
+  const isFullAccess = ['admin', 'lab', 'dyesincharge'].includes(role || '');
+  const isViewOnly = ['owner', 'manager'].includes(role || '');
+  const isRestricted = ['supervisor', 'sample'].includes(role || '');
 
-  const isRestrictedUser =
-    !isFullAccessUser &&
-    (userRole === 'user' || RESTRICTED_ACCESS_EMAILS.includes(userEmail));
+  const canSeeAllScreens = isFullAccess || isViewOnly;
+  const canSeeBasicScreens = canSeeAllScreens || isRestricted;
 
-  const showFullTabs = isFullAccessUser;
-  const showRestrictedTabs = isRestrictedUser;
+  // Safe Icon Renderer Function
+  const renderIcon = (name: React.ComponentProps<typeof MaterialCommunityIcons>['name'], color: string) => {
+    if (!MaterialCommunityIcons) return null;
+    const validIconNames: Array<React.ComponentProps<typeof MaterialCommunityIcons>['name']> = [
+      'home', 'plus-box', 'flask', 'tray-arrow-up', 'tray-arrow-down',
+      'file-document-outline', 'bell', 'account-circle'
+    ];
+    if (!validIconNames.includes(name)) {
+      return <MaterialCommunityIcons name="home" size={26} color={color} />;
+    }
+    return <MaterialCommunityIcons name={name} size={26} color={color} />;
+  };
+
+  const TabBarButton = typeof HapticTab === 'function' ? HapticTab : undefined;
 
   return (
     <Tabs
@@ -53,7 +76,7 @@ export default function TabLayout() {
         tabBarActiveTintColor:
           Colors[colorScheme === 'dark' ? 'dark' : 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
+        tabBarButton: TabBarButton,
         tabBarStyle: {
           height: 60,
           paddingBottom: 8,
@@ -66,98 +89,78 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          href: showFullTabs || showRestrictedTabs ? undefined : null,
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="house.fill" color={color} />
-          ),
+          href: canSeeBasicScreens ? undefined : null,
+          tabBarIcon: ({ color }) => renderIcon('home', color),
         }}
       />
 
-      {/* 2. ADD CHEMICAL (FULL ACCESS ONLY) */}
+      {/* 2. ADD CHEMICAL */}
       <Tabs.Screen
         name="want"
         options={{
           title: 'Add Chemical',
-          href: showFullTabs ? undefined : null,
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="plus.app" color={color} />
-          ),
+          href: canSeeAllScreens ? undefined : null,
+          tabBarIcon: ({ color }) => renderIcon('plus-box', color),
         }}
       />
 
-      {/* 3. CHEMICALS (FULL + RESTRICTED) */}
+      {/* 3. CHEMICALS */}
       <Tabs.Screen
         name="want-view"
         options={{
           title: 'Chemicals',
-          href: showFullTabs || showRestrictedTabs ? undefined : null,
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="flask" size={26} color={color} />
-          ),
+          href: canSeeBasicScreens ? undefined : null,
+          tabBarIcon: ({ color }) => renderIcon('flask', color),
         }}
       />
 
-      {/* 4. STOCK OUT (FULL + RESTRICTED) */}
+      {/* 4. STOCK OUT */}
       <Tabs.Screen
         name="stockOut"
         options={{
           title: 'Stock Out',
-          href: showFullTabs || showRestrictedTabs ? undefined : null,
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="tray-arrow-up" size={26} color={color} />
-          ),
+          href: canSeeBasicScreens ? undefined : null,
+          tabBarIcon: ({ color }) => renderIcon('tray-arrow-up', color),
         }}
       />
 
-      {/* 5. STOCK ENTRY (FULL ACCESS ONLY) */}
+      {/* 5. STOCK ENTRY */}
       <Tabs.Screen
         name="stockInScreen"
         options={{
           title: 'Stock Entry',
-          href: showFullTabs ? undefined : null,
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="tray-arrow-down" size={26} color={color} />
-          ),
+          href: canSeeAllScreens ? undefined : null,
+          tabBarIcon: ({ color }) => renderIcon('tray-arrow-down', color),
         }}
       />
 
-      {/* 6. DETAILS (FULL ACCESS ONLY) */}
+      {/* 6. DETAILS */}
       <Tabs.Screen
         name="chemicals"
         options={{
           title: 'Details',
-          href: showFullTabs ? undefined : null,
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons
-              name="file-document-outline"
-              size={26}
-              color={color}
-            />
-          ),
+          href: canSeeAllScreens ? undefined : null,
+          tabBarIcon: ({ color }) => renderIcon('file-document-outline', color),
         }}
       />
 
-      {/* 7. ALERTS (FULL + RESTRICTED) */}
+      {/* 7. ALERTS */}
       <Tabs.Screen
         name="alert"
         options={{
           title: 'Alerts',
-          href: showFullTabs || showRestrictedTabs ? undefined : null,
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="bell.fill" color={color} />
-          ),
+          href: canSeeBasicScreens ? undefined : null,
+          tabBarIcon: ({ color }) => renderIcon('bell', color),
         }}
       />
 
-      {/* 8. PROFILE (FULL + RESTRICTED) */}
+      {/* 8. PROFILE */}
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          href: showFullTabs || showRestrictedTabs ? undefined : null,
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="person.circle.fill" color={color} />
-          ),
+          href: canSeeBasicScreens ? undefined : null,
+          tabBarIcon: ({ color }) => renderIcon('account-circle', color),
         }}
       />
 

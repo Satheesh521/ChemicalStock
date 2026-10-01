@@ -9,7 +9,7 @@ import {
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { supabase } from '@/lib/supabase';
+import { chemicalService } from '@/services/chemicalService';
 import { useEffect } from 'react';
 
 export default function AlertScreen() {
@@ -23,12 +23,9 @@ export default function AlertScreen() {
 
   const fetchData = async () => {
     try {
-      const [chemicalsResp, stockOutResp] = await Promise.all([
-        supabase.from('chemicals').select('id, name, current_stock, total_stock, min_threshold, start_date, end_date').eq('is_active', true),
-        supabase.from('stock_out').select('*')
-      ]);
-
-      const chems = (chemicalsResp.data || []).map((c: any) => ({
+      // Use centralized service to get authoritative current_stock (computed from aggregates)
+      const chems = await chemicalService.getChemicals();
+      const mapped = (chems || []).map((c: any) => ({
         id: c.id,
         chemicalName: c.name || c.chemical_name || 'Unknown Chemical',
         current_stock: Number(c.current_stock) || 0,
@@ -38,8 +35,7 @@ export default function AlertScreen() {
         endDate: c.end_date,
       }));
 
-      setItems(chems);
-      if (stockOutResp.data) setStockOutItems(stockOutResp.data);
+      setItems(mapped);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -55,7 +51,11 @@ export default function AlertScreen() {
       .map((c: any) => {
         const current = Number(c.current_stock) || Number(c.total_stock) || 0;
         const threshold = Number(c.min_threshold) || 25;
-        const hasAlert = current <= threshold;
+        // Determine status
+        let status: 'out' | 'low' | 'ok' = 'ok';
+        if (current <= 0) status = 'out';
+        else if (current > 0 && current <= threshold) status = 'low';
+
         return {
           id: c.id,
           chemicalName: c.chemicalName,
@@ -63,10 +63,10 @@ export default function AlertScreen() {
           min_threshold: threshold,
           startDate: c.startDate,
           endDate: c.endDate,
-          hasAlert,
+          status,
         };
       })
-      .filter((a: any) => a.hasAlert)
+      .filter((a: any) => a.status === 'out' || a.status === 'low')
       .sort((a: any, b: any) => a.remainingStock - b.remainingStock);
   }, [items, searchQuery]);
 
@@ -145,7 +145,7 @@ export default function AlertScreen() {
           {formatValue(item.remainingStock)} kg
         </ThemedText>
         <ThemedText style={[styles.cell, { textAlign: 'right' }]}>
-          🔴 Below {item.min_threshold ?? 25}kg
+          {item.status === 'out' ? '⛔ Out of Stock' : `⚠️ Low Stock (<= ${item.min_threshold} kg)`}
         </ThemedText>
       </ThemedView>
     </TouchableOpacity>

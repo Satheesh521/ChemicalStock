@@ -1,8 +1,9 @@
 /**
- * Stock Out Screen - Fixed UI & Clean Code
+ * Stock Out Screen - Fixed Shared Chemical Fetch & UI
  */
 
 import { supabase } from '@/lib/supabase';
+import { chemicalService } from '@/services/chemicalService';
 import { stockOutService } from '@/services/stockOutService';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
@@ -31,7 +32,6 @@ type StockOutItem = {
   date_out: string;
 };
 
-// Isolated live clock component to prevent parent re-renders and TextInput focus loss
 const LiveClock = () => {
   const [time, setTime] = useState('');
 
@@ -72,6 +72,7 @@ const StockOutScreen = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // ✅ FIXED: Removed .eq('user_id', user.id) to share all company chemicals with Supervisors/Managers
   const fetchChemicalsList = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -81,14 +82,8 @@ const StockOutScreen = () => {
         return;
       }
 
-      const { data, error } = await supabase
-        .from('chemicals')
-        .select('id, name, current_stock, unit')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(500);
-      if (error) throw error;
-      setChemicals(data || []);
+      const chems = await chemicalService.getChemicals();
+      setChemicals((chems || []).map((c: any) => ({ id: c.id, name: c.name, current_stock: c.current_stock, unit: c.unit })));
     } catch (e) {
       console.error('Failed to load chemicals for autocomplete', e);
       setChemicals([]);
@@ -137,7 +132,6 @@ const StockOutScreen = () => {
       return;
     }
 
-    // ✅ VALIDATION: Check existing stock quantity before saving
     const selectedChem = chemicals.find(
       (c) => c.name.toLowerCase() === chemicalName.trim().toLowerCase()
     );
@@ -145,10 +139,7 @@ const StockOutScreen = () => {
     if (selectedChem) {
       const currentAvailable = parseFloat(selectedChem.current_stock) || 0;
       if (totalStockKg > currentAvailable) {
-        Alert.alert(
-          'Insufficient Stock!',
-          `Available stock for ${selectedChem.name} is ${currentAvailable.toFixed(3)} ${selectedChem.unit || 'kg'}. You cannot remove ${totalStockKg.toFixed(3)} kg.`
-        );
+        Alert.alert('Entered stock-out quantity exceeds available stock.');
         return;
       }
     }
@@ -193,18 +184,6 @@ const StockOutScreen = () => {
     <View style={styles.formContainer}>
       <View style={styles.header}>
         <Text style={styles.stockCount}>Stock Out Entry</Text>
-      </View>
-
-      <View style={styles.quickActions}>
-        <TouchableOpacity style={styles.quickActionBtn} onPress={() => router.push('/')}>
-          <Text style={styles.quickActionText}>View Inventory</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.quickActionBtnSecondary}
-          onPress={() => router.push('/want')}
-        >
-          <Text style={styles.quickActionTextSecondary}>Add Chemical</Text>
-        </TouchableOpacity>
       </View>
 
       <Text style={styles.title}>
@@ -346,7 +325,7 @@ const StockOutScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8F9FA' },
-  formContainer: { marginBottom: 16 },
+  formContainer: { marginBottom: 16, paddingHorizontal: 16, paddingTop: 10 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   quickActions: { flexDirection: 'row', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
   quickActionBtn: { backgroundColor: '#2E7D32', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
@@ -354,8 +333,6 @@ const styles = StyleSheet.create({
   quickActionText: { color: '#fff', fontWeight: '600', fontSize: 13 },
   quickActionTextSecondary: { color: '#2E7D32', fontWeight: '600', fontSize: 13 },
   stockCount: { fontSize: 16, fontWeight: '600', color: '#2E7D32' },
-  refreshBtn: { backgroundColor: '#81C784', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  refreshText: { color: '#fff', fontWeight: 'bold' },
   title: { fontSize: 24, fontWeight: 'bold', color: '#1B5E20', marginBottom: 20 },
   row: { flexDirection: 'row', gap: 12, marginBottom: 16, zIndex: 10 },
   inputContainer: { flex: 1 },
@@ -371,12 +348,6 @@ const styles = StyleSheet.create({
   addButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   resetButton: { flex: 1, backgroundColor: '#9E9E9E', paddingVertical: 15, borderRadius: 10, alignItems: 'center' },
   resetButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  tableRow: { flexDirection: 'row', backgroundColor: '#fff', padding: 12, borderBottomWidth: 1, borderBottomColor: '#eee', alignItems: 'center' },
-  tableCell: { flex: 1, color: '#333', fontSize: 14 },
-  editBtn: { backgroundColor: '#42A5F5', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
-  editText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-  deleteBtn: { backgroundColor: '#EF5350', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
-  deleteText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
   suggestionItem: {
     padding: 12,
     borderBottomWidth: 1,
@@ -399,7 +370,6 @@ const styles = StyleSheet.create({
     elevation: 8,
     marginTop: 4,
   },
-  emptyText: { textAlign: 'center', color: '#999', marginTop: 40, fontSize: 16 },
 });
 
 export default StockOutScreen;

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { chemicalService } from './chemicalService';
 
 export interface StockOutInput {
   chemical_id?: string;
@@ -36,7 +37,6 @@ export const stockOutService = {
       const { data, error } = await supabase
         .from('chemicals')
         .select('id, name, current_stock, unit')
-        .eq('user_id', user.id)
         .eq('is_active', true)
         .ilike('name', `%${searchQuery.trim()}%`)
         .order('name', { ascending: true })
@@ -53,25 +53,19 @@ export const stockOutService = {
   // ✅ 2. GET ALL ACTIVE CHEMICALS FOR DROPDOWN LIST
   async getAllActiveChemicals(): Promise<ChemicalSuggestion[]> {
     try {
+      // Use central chemicalService to get authoritative current_stock
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      const { data, error } = await supabase
-        .from('chemicals')
-        .select('id, name, current_stock, unit')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .order('name', { ascending: true });
-
-      if (error) throw error;
-      return data || [];
+      const chems = await chemicalService.getChemicals();
+      return (chems || []).map((c: any) => ({ id: c.id, name: c.name, current_stock: Number(c.current_stock) || 0, unit: c.unit }));
     } catch (error: any) {
       console.error('❌ Fetch All Chemicals Error:', error);
       return [];
     }
   },
 
-  // ✅ 3. CREATE STOCK OUT & DEDUCT FROM CHEMICALS TABLE
+  // ✅ 3. CREATE STOCK OUT - database trigger handles chem current_stock update
   async addStockOut(data: StockOutInput) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -80,7 +74,6 @@ export const stockOutService = {
       const kg = Number(data.stock_kg) || 0;
       const gInKg = (Number(data.stock_g) || 0) / 1000;
       const mgInKg = (Number(data.stock_mg) || 0) / 1000000;
-
       const totalOutInKg = Number((kg + gInKg + mgInKg).toFixed(3));
 
       if (totalOutInKg <= 0) {
@@ -88,13 +81,11 @@ export const stockOutService = {
       }
 
       let chemicalId = data.chemical_id;
-      let currentStock = 0;
       let chemicalName = data.chemical_name.trim();
 
       let query = supabase
         .from('chemicals')
         .select('id, current_stock, name')
-        .eq('user_id', user.id)
         .eq('is_active', true);
 
       if (chemicalId) {
@@ -111,12 +102,10 @@ export const stockOutService = {
 
       chemicalId = chemicalData.id;
       chemicalName = chemicalData.name;
-      currentStock = Number(chemicalData.current_stock) || 0;
+      const currentStock = Number(chemicalData.current_stock) || 0;
 
       if (currentStock < totalOutInKg) {
-        throw new Error(
-          `Insufficient Stock! Available: ${currentStock.toFixed(3)} kg, Required: ${totalOutInKg.toFixed(3)} kg`
-        );
+        throw new Error('Entered stock-out quantity exceeds available stock.');
       }
 
       const { data: result, error: insertError } = await supabase
@@ -140,19 +129,6 @@ export const stockOutService = {
         .single();
 
       if (insertError) throw insertError;
-
-      const updatedStock = Number((currentStock - totalOutInKg).toFixed(3));
-
-      const { error: updateError } = await supabase
-        .from('chemicals')
-        .update({
-          current_stock: updatedStock,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', chemicalId);
-
-      if (updateError) throw updateError;
-
       return result;
     } catch (error: any) {
       console.error('❌ Add Stock Out Error:', error);
@@ -169,7 +145,6 @@ export const stockOutService = {
       const { data, error } = await supabase
         .from('stock_out')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -180,7 +155,7 @@ export const stockOutService = {
     }
   },
 
-  // ✅ 5. DELETE / CANCEL STOCK OUT (Restores Chemical Stock)
+  // ✅ 5. DELETE / CANCEL STOCK OUT - database trigger restores stock
   async deleteStockOut(id: string) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -190,90 +165,61 @@ export const stockOutService = {
         .from('stock_out')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
-      if (fetchErr || !stockOutItem) throw new Error('Record not found.');
+      if (fetchErr) throw fetchErr;
+      if (!stockOutItem) throw new Error('Record not found for id: ' + String(id));
 
       const { error: deleteError } = await supabase
         .from('stock_out')
         .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
+        .eq('id', id);
 
       if (deleteError) throw deleteError;
-
-      if (stockOutItem.chemical_id) {
-        const { data: chemical } = await supabase
-          .from('chemicals')
-          .select('current_stock')
-          .eq('id', stockOutItem.chemical_id)
-          .single();
-
-        if (chemical) {
-          const restoredStock = Number((Number(chemical.current_stock) + Number(stockOutItem.quantity)).toFixed(3));
-
-          await supabase
-            .from('chemicals')
-            .update({ current_stock: restoredStock })
-            .eq('id', stockOutItem.chemical_id);
-        }
-      }
-
       return true;
     } catch (error: any) {
       throw new Error(error.message || 'Failed to revert stock out');
     }
   },
 
-  // ✅ 6. UPDATE EXISTING STOCK OUT RECORD & ADJUST INVENTORY STOCK
+  // ✅ 6. UPDATE EXISTING STOCK OUT RECORD - database trigger adjusts inventory by delta
   async updateStockOut(id: string, data: StockOutInput) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // 1. Fetch old record to calculate difference
       const { data: oldRecord, error: fetchErr } = await supabase
         .from('stock_out')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
-      if (fetchErr || !oldRecord) throw new Error('Stock out record not found');
+      if (fetchErr) throw fetchErr;
+      if (!oldRecord) throw new Error('Stock out record not found for id: ' + String(id));
 
       const kg = Number(data.stock_kg) || 0;
       const gInKg = (Number(data.stock_g) || 0) / 1000;
       const mgInKg = (Number(data.stock_mg) || 0) / 1000000;
       const newTotalOutInKg = Number((kg + gInKg + mgInKg).toFixed(3));
 
-      const oldTotalOutInKg = Number(oldRecord.quantity) || 0;
-      const diffKg = Number((newTotalOutInKg - oldTotalOutInKg).toFixed(3)); // Stock difference
-
-      // 2. Adjust inventory stock if chemical exists
-      if (oldRecord.chemical_id && diffKg !== 0) {
+      if (oldRecord.chemical_id) {
         const { data: chemical } = await supabase
           .from('chemicals')
-          .select('current_stock')
+          .select('id, current_stock')
           .eq('id', oldRecord.chemical_id)
-          .single();
+          .maybeSingle();
 
         if (chemical) {
           const currentStock = Number(chemical.current_stock) || 0;
+          const oldTotalOutInKg = Number(oldRecord.quantity) || 0;
+          const delta = Number((newTotalOutInKg - oldTotalOutInKg).toFixed(3));
 
-          // Check available stock if quantity is increased
-          if (diffKg > 0 && currentStock < diffKg) {
-            throw new Error(`Insufficient Stock! Available additional: ${currentStock.toFixed(3)} kg`);
+          if (delta > 0 && currentStock < delta) {
+            throw new Error('Entered stock-out quantity exceeds available stock.');
           }
-
-          const newInventoryStock = Number((currentStock - diffKg).toFixed(3));
-
-          await supabase
-            .from('chemicals')
-            .update({ current_stock: newInventoryStock, updated_at: new Date().toISOString() })
-            .eq('id', oldRecord.chemical_id);
         }
       }
 
-      // 3. Update stock_out record
       const { data: result, error } = await supabase
         .from('stock_out')
         .update({
@@ -287,7 +233,6 @@ export const stockOutService = {
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
-        .eq('user_id', user.id)
         .select()
         .single();
 

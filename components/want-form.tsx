@@ -100,15 +100,6 @@ export function WantForm({
         Want — Add Chemical
       </ThemedText>
 
-      <View style={styles.quickNavRow}>
-        <TouchableOpacity style={styles.quickNavBtn} onPress={() => router.push('/(tabs)')}>
-          <ThemedText style={styles.quickNavText}>View inventory</ThemedText>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.quickNavBtnSecondary} onPress={() => router.push('/(tabs)/stockOut')}>
-          <ThemedText style={styles.quickNavTextSecondary}>Stock out</ThemedText>
-        </TouchableOpacity>
-      </View>
-
       <View style={styles.field}>
         <ThemedText style={styles.label}>Chemical name</ThemedText>
         <TextInput

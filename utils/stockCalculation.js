@@ -239,23 +239,20 @@ export function parseStockValue(value) {
 // ============================================
 export function calculateCurrentStock(totalStock, stockOutValues) {
   try {
-    // Convert total to number
     const total = toNumber(totalStock, 0);
 
-    // Check if stockOutValues is an array
     if (!Array.isArray(stockOutValues)) {
-      // Single value
       const out = toNumber(stockOutValues, 0);
-      return preciseSubtract(total, out);
+      const res = preciseSubtract(total, out);
+      return Math.max(0, Number(res));
     }
 
-    // Array of values - filter out null/undefined first
     const validOutValues = stockOutValues
       .filter(v => v !== null && v !== undefined)
       .map(v => toNumber(v, 0));
 
-    return preciseSubtract(total, ...validOutValues);
-
+    const res = preciseSubtract(total, ...validOutValues);
+    return Math.max(0, Number(res));
   } catch (err) {
     console.error('❌ calculateCurrentStock error:', err);
     return 0;

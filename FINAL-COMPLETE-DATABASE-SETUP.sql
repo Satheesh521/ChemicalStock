@@ -151,59 +151,221 @@ CREATE TRIGGER update_stock_out_updated_at
 BEFORE UPDATE ON public.stock_out
 FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
--- 10. RLS POLICIES - CHEMICALS
-DROP POLICY IF EXISTS "Users can view own chemicals" ON public.chemicals;
-CREATE POLICY "Users can view own chemicals"
+-- 10. STOCK SYNCHRONIZATION TRIGGER
+-- Single source of truth: chemicals.current_stock is adjusted only here.
+CREATE OR REPLACE FUNCTION public.sync_chemical_stock_from_stock_out()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    UPDATE public.chemicals
+    SET current_stock = current_stock - NEW.quantity,
+        updated_at = TIMEZONE('utc', NOW())
+    WHERE id = NEW.chemical_id
+      AND current_stock >= NEW.quantity;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Stock out rejected: insufficient stock for chemical %', NEW.chemical_id;
+    END IF;
+
+    RETURN NEW;
+  ELSIF TG_OP = 'UPDATE' THEN
+    IF NEW.chemical_id IS DISTINCT FROM OLD.chemical_id THEN
+      UPDATE public.chemicals
+      SET current_stock = current_stock + OLD.quantity,
+          updated_at = TIMEZONE('utc', NOW())
+      WHERE id = OLD.chemical_id;
+
+      UPDATE public.chemicals
+      SET current_stock = current_stock - NEW.quantity,
+          updated_at = TIMEZONE('utc', NOW())
+      WHERE id = NEW.chemical_id
+        AND current_stock >= NEW.quantity;
+
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'Stock out rejected: insufficient stock for chemical %', NEW.chemical_id;
+      END IF;
+    ELSE
+      UPDATE public.chemicals
+      SET current_stock = current_stock + (OLD.quantity - NEW.quantity),
+          updated_at = TIMEZONE('utc', NOW())
+      WHERE id = NEW.chemical_id
+        AND (current_stock + OLD.quantity) >= NEW.quantity;
+
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'Stock out update rejected: insufficient stock for chemical %', NEW.chemical_id;
+      END IF;
+    END IF;
+
+    RETURN NEW;
+  ELSIF TG_OP = 'DELETE' THEN
+    UPDATE public.chemicals
+    SET current_stock = current_stock + OLD.quantity,
+        updated_at = TIMEZONE('utc', NOW())
+    WHERE id = OLD.chemical_id;
+
+    RETURN OLD;
+  END IF;
+
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS sync_stock_out_to_chemical_stock_insert ON public.stock_out;
+CREATE TRIGGER sync_stock_out_to_chemical_stock_insert
+AFTER INSERT ON public.stock_out
+FOR EACH ROW EXECUTE FUNCTION public.sync_chemical_stock_from_stock_out();
+
+DROP TRIGGER IF EXISTS sync_stock_out_to_chemical_stock_update ON public.stock_out;
+CREATE TRIGGER sync_stock_out_to_chemical_stock_update
+AFTER UPDATE OF quantity, chemical_id ON public.stock_out
+FOR EACH ROW EXECUTE FUNCTION public.sync_chemical_stock_from_stock_out();
+
+DROP TRIGGER IF EXISTS sync_stock_out_to_chemical_stock_delete ON public.stock_out;
+CREATE TRIGGER sync_stock_out_to_chemical_stock_delete
+AFTER DELETE ON public.stock_out
+FOR EACH ROW EXECUTE FUNCTION public.sync_chemical_stock_from_stock_out();
+
+-- 11. ALLOW SHARED INVENTORY ACCESS FOR AUTHENTICATED USERS (role-aware)
+CREATE OR REPLACE FUNCTION public.user_has_inventory_access()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+      AND p.role IN ('admin', 'manager', 'supervisor', 'staff', 'user')
+  );
+$$;
+
+-- 12. RLS POLICIES - CHEMICALS
+DROP POLICY IF EXISTS "Chemicals shared inventory read" ON public.chemicals;
+CREATE POLICY "Chemicals shared inventory read"
 ON public.chemicals FOR SELECT
-USING (auth.uid() = user_id);
+USING (public.user_has_inventory_access());
 
-DROP POLICY IF EXISTS "Users can insert chemicals" ON public.chemicals;
-CREATE POLICY "Users can insert chemicals"
+DROP POLICY IF EXISTS "Chemicals shared inventory insert" ON public.chemicals;
+CREATE POLICY "Chemicals shared inventory insert"
 ON public.chemicals FOR INSERT
-WITH CHECK (auth.uid() = user_id);
+WITH CHECK (
+  public.user_has_inventory_access()
+  AND EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE p.id = auth.uid() AND p.role IN ('admin', 'manager')
+  )
+);
 
-DROP POLICY IF EXISTS "Users can update own chemicals" ON public.chemicals;
-CREATE POLICY "Users can update own chemicals"
+DROP POLICY IF EXISTS "Chemicals shared inventory update" ON public.chemicals;
+CREATE POLICY "Chemicals shared inventory update"
 ON public.chemicals FOR UPDATE
-USING (auth.uid() = user_id);
+USING (
+  public.user_has_inventory_access()
+  AND EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE p.id = auth.uid() AND p.role IN ('admin', 'manager')
+  )
+)
+WITH CHECK (
+  public.user_has_inventory_access()
+  AND EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE p.id = auth.uid() AND p.role IN ('admin', 'manager')
+  )
+);
 
-DROP POLICY IF EXISTS "Users can delete own chemicals" ON public.chemicals;
-CREATE POLICY "Users can delete own chemicals"
+DROP POLICY IF EXISTS "Chemicals shared inventory delete" ON public.chemicals;
+CREATE POLICY "Chemicals shared inventory delete"
 ON public.chemicals FOR DELETE
-USING (auth.uid() = user_id);
+USING (
+  public.user_has_inventory_access()
+  AND EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE p.id = auth.uid() AND p.role IN ('admin', 'manager')
+  )
+);
 
--- 11. RLS POLICIES - ALERTS
+-- 13. RLS POLICIES - ALERTS
 DROP POLICY IF EXISTS "Users can view own alerts" ON public.alerts;
 CREATE POLICY "Users can view own alerts"
 ON public.alerts FOR SELECT
-USING (auth.uid() = user_id);
+USING (public.user_has_inventory_access());
 
 DROP POLICY IF EXISTS "Users can update own alerts" ON public.alerts;
 CREATE POLICY "Users can update own alerts"
 ON public.alerts FOR UPDATE
-USING (auth.uid() = user_id);
+USING (public.user_has_inventory_access());
 
--- 12. RLS POLICIES - STOCK_IN
-DROP POLICY IF EXISTS "Users can view own stock_in" ON public.stock_in;
-CREATE POLICY "Users can view own stock_in"
+-- 14. RLS POLICIES - STOCK_IN
+DROP POLICY IF EXISTS "Authorized users can view stock_in" ON public.stock_in;
+CREATE POLICY "Authorized users can view stock_in"
 ON public.stock_in FOR SELECT
-USING (auth.uid() = user_id);
+USING (public.user_has_inventory_access());
 
-DROP POLICY IF EXISTS "Users can insert stock_in" ON public.stock_in;
-CREATE POLICY "Users can insert stock_in"
+DROP POLICY IF EXISTS "Authorized users can insert stock_in" ON public.stock_in;
+CREATE POLICY "Authorized users can insert stock_in"
 ON public.stock_in FOR INSERT
-WITH CHECK (auth.uid() = user_id);
+WITH CHECK (
+  public.user_has_inventory_access()
+  AND EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE p.id = auth.uid() AND p.role IN ('admin', 'manager')
+  )
+);
 
--- 13. RLS POLICIES - STOCK_OUT
-DROP POLICY IF EXISTS "Users can view own stock_out" ON public.stock_out;
-CREATE POLICY "Users can view own stock_out"
+-- 15. RLS POLICIES - STOCK_OUT
+DROP POLICY IF EXISTS "Authorized users can view stock_out" ON public.stock_out;
+CREATE POLICY "Authorized users can view stock_out"
 ON public.stock_out FOR SELECT
-USING (auth.uid() = user_id);
+USING (public.user_has_inventory_access());
 
-DROP POLICY IF EXISTS "Users can insert stock_out" ON public.stock_out;
-CREATE POLICY "Users can insert stock_out"
+DROP POLICY IF EXISTS "Authorized users can insert stock_out" ON public.stock_out;
+CREATE POLICY "Authorized users can insert stock_out"
 ON public.stock_out FOR INSERT
-WITH CHECK (auth.uid() = user_id);
+WITH CHECK (
+  public.user_has_inventory_access()
+  AND EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE p.id = auth.uid() AND p.role IN ('admin', 'manager', 'supervisor')
+  )
+);
+
+DROP POLICY IF EXISTS "Authorized users can update stock_out" ON public.stock_out;
+CREATE POLICY "Authorized users can update stock_out"
+ON public.stock_out FOR UPDATE
+USING (
+  public.user_has_inventory_access()
+  AND EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE p.id = auth.uid() AND p.role IN ('admin', 'manager', 'supervisor')
+  )
+)
+WITH CHECK (
+  public.user_has_inventory_access()
+  AND EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE p.id = auth.uid() AND p.role IN ('admin', 'manager', 'supervisor')
+  )
+);
+
+DROP POLICY IF EXISTS "Authorized users can delete stock_out" ON public.stock_out;
+CREATE POLICY "Authorized users can delete stock_out"
+ON public.stock_out FOR DELETE
+USING (
+  public.user_has_inventory_access()
+  AND EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE p.id = auth.uid() AND p.role IN ('admin', 'manager', 'supervisor')
+  )
+);
+
+-- 16. Realtime publication for shared inventory updates
+ALTER PUBLICATION supabase_realtime
+  ADD TABLE public.chemicals;
+
+ALTER PUBLICATION supabase_realtime
+  ADD TABLE public.stock_out;
 
 -- ============================================================================
 -- ✅ SETUP COMPLETE! ALL TABLES RECREATED CORRECTLY!

@@ -6,6 +6,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,7 +14,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
 // =====================================================
@@ -45,7 +46,7 @@ const COLORS = {
 // FULL ACCESS USERS
 const FULL_ACCESS_EMAILS = [
   'mpadmin605@gmail.com',
-  'mpwonar605@gmail.com',
+  'mpowner605@gmail.com',
   'mpmanager605@gmail.com',
   'mplab605@gmail.com',
   'mpdyesincharge605@gmail.com',
@@ -291,7 +292,7 @@ export default function LoginScreen() {
         typeof err === 'string'
           ? err
           : err?.message ||
-            'Please check your email and password.';
+          'Please check your email and password.';
 
       Alert.alert(
         isLogin ? 'Login Failed' : 'Signup Failed',
@@ -345,9 +346,11 @@ export default function LoginScreen() {
 
           <View style={styles.logoContainer}>
             <View style={styles.logoCircle}>
-              <Text style={styles.logoIcon}>
-                🧪
-              </Text>
+              <Image
+                source={require('../assets/images/logo.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
           </View>
 
@@ -704,6 +707,11 @@ const styles = StyleSheet.create({
 
   logoIcon: {
     fontSize: 40,
+  },
+
+  logoImage: {
+    width: 50,
+    height: 50,
   },
 
   appName: {

@@ -4,23 +4,29 @@
     "slug": "chemical-stock",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/app-logo.jpeg",
+    "icon": "./assets/images/logo.png",
     "scheme": "chemical-stock-app",
     "userInterfaceStyle": "automatic",
     "owner": "satheeshkannan",
+    "splash": {
+      "image": "./assets/images/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0c5427"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "icon": "./assets/images/logo.png"
     },
     "android": {
       "package": "com.chemicalstock.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/app-logo.jpeg",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/logo.png",
+        "backgroundColor": "#0c5427"
       }
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/app-logo.jpeg"
+      "favicon": "./assets/images/logo.png"
     },
     "plugins": [
       "expo-router",
@@ -38,9 +44,9 @@
             "compileSdkVersion": 35,
             "targetSdkVersion": 35,
             "minSdkVersion": 24,
-            "kotlinVersion": "2.1.20",
-            "usesCleartextTraffic": true,
-            "newArchEnabled": true,
+            "kotlinVersion": "1.9.24",
+            "usesCleartextTraffic": false,
+            "newArchEnabled": false,
             "gradlePluginVersion": "8.7.3",
             "ndkVersion": "27.0.12077973"
           }

@@ -1,4 +1,5 @@
 import { WantView } from '@/components/want-view';
+import { supabase } from '@/lib/supabase';
 import { stockOutService } from '@/services/stockOutService';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
@@ -42,9 +43,41 @@ export default function WantViewScreen() {
 
   useEffect(() => {
     fetchData();
+
+    // Realtime subscription to stock_out changes to keep UI in sync
+    let sub: any = null;
+    try {
+      sub = (supabase as any)
+        .channel
+        ? (supabase as any)
+          .channel('public:stock_out')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_out' }, () => {
+            fetchData();
+          })
+          .subscribe()
+        : (supabase as any).from('stock_out').on('*', () => fetchData()).subscribe();
+    } catch (e) {
+      // best-effort fallback: poll every 10s
+      const interval = setInterval(fetchData, 10000);
+      return () => clearInterval(interval);
+    }
+
+    return () => {
+      try {
+        if (sub && sub.unsubscribe) sub.unsubscribe();
+        if (sub && sub.remove) sub.remove();
+      } catch (e) {
+        // ignore
+      }
+    };
   }, [fetchData]);
 
   const handleDeleteItem = async (id: string) => {
+    if (!id) {
+      Alert.alert('Error', 'Invalid record id');
+      return;
+    }
+
     Alert.alert('Confirm', 'Delete this stock out record?', [
       { text: 'Cancel', style: 'cancel' },
       {

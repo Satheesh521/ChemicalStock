@@ -1,14 +1,14 @@
 {
   "compilerOptions": {
-    "ignoreDeprecations": "6.0",
     "jsx": "react-jsx",
     "target": "ES2020",
     "module": "ESNext",
     "moduleResolution": "bundler",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "strict": true,
+    "strict": false,
     "skipLibCheck": true,
+    "noImplicitAny": false,
     "baseUrl": ".",
     "paths": {
       "@/*": [

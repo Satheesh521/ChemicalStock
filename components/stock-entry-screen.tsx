@@ -1,17 +1,21 @@
 import { Picker } from '@react-native-picker/picker';
-import { Camera, CameraView } from 'expo-camera';
+import { BarcodeScanningResult, Camera, CameraView } from 'expo-camera';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Modal,
+  NativeSyntheticEvent,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  TextInputChangeEventData,
+  TextStyle,
   TouchableOpacity,
   Vibration,
   View,
+  ViewStyle,
 } from 'react-native';
 
 interface StockEntryData {
@@ -58,7 +62,7 @@ export default function StockEntryScreen() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [scanSuccess, setScanSuccess] = useState(false); // ✅ NEW: show success banner
+  const [scanSuccess, setScanSuccess] = useState(false);
 
   useEffect(() => {
     const getCameraPermissions = async () => {
@@ -78,35 +82,30 @@ export default function StockEntryScreen() {
     }
   };
 
-  // ✅ FIXED: No Alert popup — directly fills form and closes scanner
-  const handleQRCodeScanned = ({ data }: { data: string }) => {
+  const handleQRCodeScanned = (result: BarcodeScanningResult) => {
     if (scanned) return;
 
-    console.log('🔍 QR Code Scanned - Raw Data:', data); // Debug log
+    console.log('🔍 QR Code Scanned - Raw Data:', result.data);
     setScanned(true);
     Vibration.vibrate(100);
 
     try {
-      const qrData: QRData = parseQRData(data);
-      console.log('✅ QR Data Parsed Successfully:', qrData); // Debug log
+      const qrData: QRData = parseQRData(result.data);
+      console.log('✅ QR Data Parsed Successfully:', qrData);
 
-      // ✅ Fill form directly
       updateFormWithQRData(qrData);
-      console.log('📝 Form Updated with QR Data'); // Debug log
+      console.log('📝 Form Updated with QR Data');
 
-      // ✅ Close scanner immediately — no popup
       setShowQRScanner(false);
       setScanned(false);
-      console.log('📷 Scanner Closed'); // Debug log
+      console.log('📷 Scanner Closed');
 
-      // ✅ Show small success banner on form (not a blocking Alert)
       setScanSuccess(true);
       setTimeout(() => setScanSuccess(false), 3000);
-      console.log('🎉 Success Banner Shown (3 seconds)'); // Debug log
+      console.log('🎉 Success Banner Shown (3 seconds)');
 
     } catch (error) {
-      console.error('❌ QR Scan Error:', error); // Debug log
-      // Only show alert for actual errors
+      console.error('❌ QR Scan Error:', error);
       setScanned(false);
       Alert.alert(
         '❌ Invalid QR Code',
@@ -146,24 +145,38 @@ export default function StockEntryScreen() {
     }
   };
 
-  const validateQRData = (data: any): QRData => {
+  const validateQRData = (data: Record<string, unknown>): QRData => {
     const result: QRData = {};
-    // FIXED: Use 'in' operator to check for property existence, not truthiness
-    if ('chemicalName' in data && typeof data.chemicalName === 'string') result.chemicalName = data.chemicalName.trim();
-    if ('batchNumber' in data && typeof data.batchNumber === 'string') result.batchNumber = data.batchNumber.trim();
-    if ('quantity' in data && typeof data.quantity === 'string') result.quantity = data.quantity.trim();
-    if ('unit' in data && typeof data.unit === 'string') result.unit = data.unit.trim();
-    if ('date' in data && typeof data.date === 'string') result.date = data.date.trim();
-    if ('vendor' in data && typeof data.vendor === 'string') result.vendor = data.vendor.trim();
-    if ('location' in data && typeof data.location === 'string') result.location = data.location.trim();
-    if ('notes' in data && typeof data.notes === 'string') result.notes = data.notes.trim();
+    if ('chemicalName' in data && typeof data.chemicalName === 'string') {
+      result.chemicalName = data.chemicalName.trim();
+    }
+    if ('batchNumber' in data && typeof data.batchNumber === 'string') {
+      result.batchNumber = data.batchNumber.trim();
+    }
+    if ('quantity' in data && typeof data.quantity === 'string') {
+      result.quantity = data.quantity.trim();
+    }
+    if ('unit' in data && typeof data.unit === 'string') {
+      result.unit = data.unit.trim();
+    }
+    if ('date' in data && typeof data.date === 'string') {
+      result.date = data.date.trim();
+    }
+    if ('vendor' in data && typeof data.vendor === 'string') {
+      result.vendor = data.vendor.trim();
+    }
+    if ('location' in data && typeof data.location === 'string') {
+      result.location = data.location.trim();
+    }
+    if ('notes' in data && typeof data.notes === 'string') {
+      result.notes = data.notes.trim();
+    }
     return result;
   };
 
   const updateFormWithQRData = (qrData: QRData) => {
-    console.log('🔄 Updating Form with QR Data:', qrData); // Debug log
+    console.log('🔄 Updating Form with QR Data:', qrData);
 
-    // FIXED: Force update all fields that exist in QR data, even if empty
     const newFormData = { ...formData };
     if (qrData.chemicalName !== undefined) newFormData.chemicalName = qrData.chemicalName;
     if (qrData.batchNumber !== undefined) newFormData.batchNumber = qrData.batchNumber;
@@ -174,17 +187,23 @@ export default function StockEntryScreen() {
     if (qrData.location !== undefined) newFormData.location = qrData.location;
     if (qrData.notes !== undefined) newFormData.notes = qrData.notes;
 
-    console.log('✅ New Form Data:', newFormData); // Debug log
+    console.log('✅ New Form Data:', newFormData);
     setFormData(newFormData);
 
-    // Force a re-render by triggering a state update
     setTimeout(() => {
-      console.log('🔄 Forced form update check:', newFormData); // Debug log - show the updated values
+      console.log('🔄 Forced form update check:', newFormData);
     }, 100);
   };
 
   const handleInputChange = (field: keyof StockEntryData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleTextInputChange = (
+    field: keyof StockEntryData,
+    event: NativeSyntheticEvent<TextInputChangeEventData>
+  ) => {
+    handleInputChange(field, event.nativeEvent.text);
   };
 
   const validateForm = (): boolean => {
@@ -220,12 +239,10 @@ export default function StockEntryScreen() {
     }
     setLoading(true);
     try {
-      // Find chemical by name to get its ID
       const chemicals = await chemicalService.getChemicals();
       let chemical = chemicals.find(c => c.name.toLowerCase() === formData.chemicalName.toLowerCase());
 
       if (!chemical) {
-        // If chemical doesn't exist, create it first
         chemical = await chemicalService.addChemical({
           name: formData.chemicalName,
           quantity: formData.quantity,
@@ -255,9 +272,10 @@ export default function StockEntryScreen() {
           { text: 'Add Another', style: 'default' },
         ]
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Save error:', error);
-      Alert.alert('❌ Error', error.message || 'Failed to save stock entry. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save stock entry. Please try again.';
+      Alert.alert('❌ Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -328,7 +346,6 @@ export default function StockEntryScreen() {
               onBarcodeScanned={scanned ? undefined : handleQRCodeScanned}
             />
 
-            {/* Scanner overlay */}
             <View style={styles.overlay}>
               <View style={styles.scanFrame}>
                 <View style={[styles.corner, styles.topLeft]} />
@@ -358,12 +375,10 @@ export default function StockEntryScreen() {
       <View style={styles.formContainer}>
         <Text style={styles.title}>📦 Stock Entry (In)</Text>
 
-        {/* ✅ QR Scanner Button */}
         <TouchableOpacity style={styles.qrButton} onPress={openQRScanner}>
           <Text style={styles.qrButtonText}>📷 Scan QR Code</Text>
         </TouchableOpacity>
 
-        {/* ✅ Success Banner — shows instead of Alert popup */}
         {scanSuccess && (
           <View style={styles.successBanner}>
             <Text style={styles.successBannerText}>
@@ -372,7 +387,6 @@ export default function StockEntryScreen() {
           </View>
         )}
 
-        {/* Form Fields */}
         <View style={styles.field}>
           <Text style={styles.label}>Chemical Name *</Text>
           <TextInput
@@ -406,7 +420,7 @@ export default function StockEntryScreen() {
           </View>
           <View style={[styles.field, { flex: 1 }]}>
             <Text style={styles.label}>Unit</Text>
-            <View style={[styles.input, { padding: 0 }]}>
+            <View style={styles.pickerContainer}>
               <Picker
                 selectedValue={formData.unit}
                 onValueChange={(value) => handleInputChange('unit', value)}
@@ -464,7 +478,6 @@ export default function StockEntryScreen() {
           />
         </View>
 
-        {/* Action Buttons */}
         <View style={styles.buttonRow}>
           <TouchableOpacity
             style={[styles.button, styles.clearButton]}
@@ -496,7 +509,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-  },
+  } as ViewStyle,
   formContainer: {
     padding: 20,
     backgroundColor: '#fff',
@@ -507,28 +520,26 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
+  } as ViewStyle,
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
     textAlign: 'center',
     marginBottom: 20,
-  },
+  } as TextStyle,
   qrButton: {
     backgroundColor: '#007AFF',
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
     marginBottom: 12,
-  },
+  } as ViewStyle,
   qrButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-  },
-
-  // ✅ NEW: Success banner style
+  } as TextStyle,
   successBanner: {
     backgroundColor: '#d4edda',
     borderColor: '#28a745',
@@ -538,26 +549,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     marginBottom: 16,
     alignItems: 'center',
-  },
+  } as ViewStyle,
   successBannerText: {
     color: '#155724',
     fontSize: 14,
     fontWeight: '600',
-  },
-
+  } as TextStyle,
   field: {
     marginBottom: 16,
-  },
+  } as ViewStyle,
   fieldRow: {
     flexDirection: 'row',
-    // 'gap' is not supported on all React Native versions; use spacing via styles on children instead
-  },
+  } as ViewStyle,
   label: {
     fontSize: 14,
     fontWeight: '600',
     color: '#333',
     marginBottom: 8,
-  },
+  } as TextStyle,
   input: {
     borderWidth: 1,
     borderColor: '#ddd',
@@ -566,44 +575,47 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
     backgroundColor: '#f9f9f9',
-  },
+  } as TextStyle,
   textArea: {
     height: 80,
     textAlignVertical: 'top',
-  },
+  } as TextStyle,
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    backgroundColor: '#f9f9f9',
+  } as ViewStyle,
   buttonRow: {
     flexDirection: 'row',
-    // 'gap' removed for RN compatibility; uses margins on buttons instead
     marginTop: 20,
-  },
+  } as ViewStyle,
   button: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
-  },
+  } as ViewStyle,
   clearButton: {
     backgroundColor: '#6c757d',
-  },
+  } as ViewStyle,
   clearButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-  },
+  } as TextStyle,
   saveButton: {
     backgroundColor: '#28a745',
-  },
+  } as ViewStyle,
   saveButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-  },
-
-  // QR Scanner Styles
+  } as TextStyle,
   scannerContainer: {
     flex: 1,
     backgroundColor: '#000',
-  },
+  } as ViewStyle,
   scannerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -612,26 +624,26 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingBottom: 20,
     backgroundColor: 'rgba(0,0,0,0.7)',
-  },
+  } as ViewStyle,
   closeButton: {
     width: 24,
     height: 24,
     justifyContent: 'center',
     alignItems: 'center',
-  },
+  } as ViewStyle,
   closeText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
-  },
+  } as TextStyle,
   scannerTitle: {
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
-  },
+  } as TextStyle,
   camera: {
     flex: 1,
-  },
+  } as ViewStyle,
   overlay: {
     position: 'absolute',
     top: '50%',
@@ -639,24 +651,24 @@ const styles = StyleSheet.create({
     transform: [{ translateX: -150 }, { translateY: -150 }],
     width: 300,
     height: 300,
-  },
+  } as ViewStyle,
   scanFrame: {
     flex: 1,
     borderWidth: 2,
     borderColor: 'rgba(0, 123, 255, 0.3)',
     borderRadius: 12,
     overflow: 'hidden',
-  },
+  } as ViewStyle,
   corner: {
     position: 'absolute',
     width: 20,
     height: 20,
     borderColor: '#007AFF',
-  },
-  topLeft: { top: -1, left: -1, borderTopWidth: 3, borderLeftWidth: 3 },
-  topRight: { top: -1, right: -1, borderTopWidth: 3, borderRightWidth: 3 },
-  bottomLeft: { bottom: -1, left: -1, borderBottomWidth: 3, borderLeftWidth: 3 },
-  bottomRight: { bottom: -1, right: -1, borderBottomWidth: 3, borderRightWidth: 3 },
+  } as ViewStyle,
+  topLeft: { top: -1, left: -1, borderTopWidth: 3, borderLeftWidth: 3 } as ViewStyle,
+  topRight: { top: -1, right: -1, borderTopWidth: 3, borderRightWidth: 3 } as ViewStyle,
+  bottomLeft: { bottom: -1, left: -1, borderBottomWidth: 3, borderLeftWidth: 3 } as ViewStyle,
+  bottomRight: { bottom: -1, right: -1, borderBottomWidth: 3, borderRightWidth: 3 } as ViewStyle,
   scanLine: {
     position: 'absolute',
     top: '50%',
@@ -665,7 +677,7 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: '#007AFF',
     transform: [{ translateY: -1 }],
-  },
+  } as ViewStyle,
   scannerFooter: {
     position: 'absolute',
     bottom: 50,
@@ -673,29 +685,29 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     paddingHorizontal: 20,
-  },
+  } as ViewStyle,
   scannerInstruction: {
     color: '#fff',
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 8,
     fontWeight: '500',
-  },
+  } as TextStyle,
   scannerSubInstruction: {
     color: 'rgba(255,255,255,0.7)',
     fontSize: 12,
     textAlign: 'center',
-  },
+  } as TextStyle,
   permissionContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
-  },
-  permissionIcon: { fontSize: 64, marginBottom: 20 },
-  permissionTitle: { color: '#fff', fontSize: 18, fontWeight: '600', marginBottom: 10, textAlign: 'center' },
-  permissionSubtext: { color: 'rgba(255,255,255,0.7)', fontSize: 14, textAlign: 'center', marginBottom: 20 },
-  permissionButton: { backgroundColor: '#007AFF', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
-  permissionButtonText: { color: '#fff', fontWeight: '600' },
-  permissionText: { color: '#fff', fontSize: 16, textAlign: 'center' },
+  } as ViewStyle,
+  permissionIcon: { fontSize: 64, marginBottom: 20 } as TextStyle,
+  permissionTitle: { color: '#fff', fontSize: 18, fontWeight: '600', marginBottom: 10, textAlign: 'center' } as TextStyle,
+  permissionSubtext: { color: 'rgba(255,255,255,0.7)', fontSize: 14, textAlign: 'center', marginBottom: 20 } as TextStyle,
+  permissionButton: { backgroundColor: '#007AFF', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 } as ViewStyle,
+  permissionButtonText: { color: '#fff', fontWeight: '600' } as TextStyle,
+  permissionText: { color: '#fff', fontSize: 16, textAlign: 'center' } as TextStyle,
 });

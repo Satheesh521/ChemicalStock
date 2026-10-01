@@ -7,20 +7,49 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 export default function ProfileScreen() {
   const { user, signOut, loading } = useAuth();
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // Parse role and avatar letter from email
+  const parseRoleFromEmail = (email: string) => {
+    const local = (email || '').split('@')[0] || '';
+
+    // Remove leading 'mp' if present and trailing digits like '605'
+    let cleaned = local.replace(/^mp/i, '').replace(/\d+$/g, '');
+
+    // Normalize separators
+    cleaned = cleaned.replace(/[_\-.]/g, ' ').trim();
+
+    // Known role display mappings
+    const displayMap: Record<string, string> = {
+      admin: 'Admin',
+      owner: 'Owner',
+      manager: 'Manager',
+      lab: 'Lab',
+      dyesincharge: 'Dyes Incharge',
+      dyes_in_charge: 'Dyes Incharge',
+      supervisor: 'Supervisor',
+      sample: 'Sample',
+    };
+
+    const key = cleaned.toLowerCase();
+    const display = displayMap[key] || (cleaned ? cleaned.replace(/(^|\s)\S/g, s => s.toUpperCase()) : 'User');
+    const letter = display.charAt(0).toUpperCase() || 'U';
+
+    return { key, display, letter };
+  };
 
   const handleLogout = async () => {
     Alert.alert('Logout', 'Do you want to logout?', [
@@ -58,14 +87,9 @@ export default function ProfileScreen() {
     );
   }
 
-  // Get user initials
+  // Get user email and derived role/avatar
   const email = user?.email || '';
-  const initials = email
-    .split('@')[0]
-    .split('.')
-    .map((part) => part && part[0] ? part[0].toUpperCase() : '')
-    .join('')
-    .slice(0, 2);
+  const { display: roleDisplay, letter: avatarLetter } = parseRoleFromEmail(email);
 
   // Get account creation date
   const createdAt = user?.created_at
@@ -75,12 +99,12 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Avatar Section */}
+        {/* Avatar Section - render first-letter avatar (no logo) */}
         <View style={styles.avatarSection}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials || '👤'}</Text>
+          <View style={styles.avatar} accessible accessibilityLabel={`Role: ${roleDisplay}`}>
+            <Text style={styles.avatarText}>{avatarLetter}</Text>
           </View>
-          <Text style={styles.userName}>{email.split('@')[0]}</Text>
+          <Text style={styles.userName}>{roleDisplay}</Text>
         </View>
 
         {/* Details Section */}
@@ -145,7 +169,7 @@ export default function ProfileScreen() {
             <ActivityIndicator color="#fff" />
           ) : (
             <>
-              <Text style={styles.logoutIcon}></Text>
+              <Text style={styles.logoutIcon}>🚪</Text>
               <Text style={styles.logoutText}>Logout</Text>
             </>
           )}
@@ -284,7 +308,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   logoutIcon: {
-    fontSize: 20,
+    fontSize: 18,
     marginRight: 8,
   },
   logoutText: {
@@ -311,4 +335,4 @@ const styles = StyleSheet.create({
     color: '#1565C0',
     lineHeight: 18,
   },
-});
+}); 

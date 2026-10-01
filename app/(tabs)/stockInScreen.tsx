@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
-// Local Date Helper Function (Timezone Bug-ஐ தவிர்க்க)
 const getLocalDate = () => {
   const d = new Date();
   const offset = d.getTimezoneOffset();

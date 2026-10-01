@@ -18,7 +18,6 @@ export const chemicalService = {
   // ✅ ADD CHEMICAL
   async addChemical(data: ChemicalInput | any) {
     try {
-      // ✅ AUTH CHECK
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated. Please login.');
 
@@ -38,7 +37,6 @@ export const chemicalService = {
         .select()
         .single();
 
-
       if (error) {
         console.error('❌ Supabase Insert Error:', error.message);
         throw new Error(error.message);
@@ -52,18 +50,21 @@ export const chemicalService = {
     }
   },
 
-  // ✅ GET ALL CHEMICALS
+  // ✅ GET ALL CHEMICALS (Shared Company Inventory)
   async getChemicals() {
     try {
-      // ✅ AUTH CHECK
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Please login');
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        throw new Error('Please login');
+      }
 
       const { data, error } = await supabase
         .from('chemicals')
         .select('*')
-        .eq('user_id', user.id)       // ✅ Only logged-in user's data
-        .eq('is_active', true)        // ✅ Only active chemicals
+        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -71,14 +72,78 @@ export const chemicalService = {
         throw error;
       }
 
-      return data || [];
+      return (data || []).map((chem: any) => ({
+        ...chem,
+        total_stock: Number(chem.total_stock) || 0,
+        current_stock: Math.max(0, Number(chem.current_stock) || 0),
+        min_threshold: Number(chem.min_threshold) || 25,
+      }));
     } catch (error: any) {
       console.error('💥 Fetch Error:', error);
       throw new Error(error.message || 'Failed to fetch chemicals');
     }
   },
 
-  // ✅ UPDATE CHEMICAL (Newly Added)
+
+  // Subscribe to realtime changes for chemicals. Returns unsubscribe function.
+  subscribeToChemicals(onChange: (payload: any) => void) {
+    // Try to use Supabase Realtime (postgres_changes) if available
+    try {
+      // channel API available in newer supabase-js
+      // subscribe to INSERT/UPDATE/DELETE on chemicals
+      // Note: this may be a no-op if realtime is not configured on the project
+      let channel: any = null;
+      if ((supabase as any).channel) {
+        channel = (supabase as any)
+          .channel('public:chemicals')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'chemicals' },
+            (payload: any) => {
+              try {
+                onChange(payload);
+              } catch (e) {
+                console.error('Subscriber callback error:', e);
+              }
+            }
+          )
+          .subscribe();
+      }
+
+      // Return unsubscribe
+      return async () => {
+        try {
+          if (channel && channel.unsubscribe) await channel.unsubscribe();
+        } catch (e) {
+          console.warn('Failed to unsubscribe supabase channel', e);
+        }
+      };
+    } catch (err) {
+      // Fallback: simple polling every 10s
+      console.warn('Realtime subscribe failed, falling back to polling', err);
+      let cancelled = false;
+      const interval = setInterval(async () => {
+        if (cancelled) return;
+        try {
+          const { data: fresh } = await supabase
+            .from('chemicals')
+            .select('*')
+            .eq('is_active', true)
+            .order('created_at', { ascending: false });
+          onChange({ eventType: 'poll', new: fresh });
+        } catch (e) {
+          console.warn('Polling fetch failed', e);
+        }
+      }, 10000);
+
+      return async () => {
+        cancelled = true;
+        clearInterval(interval);
+      };
+    }
+  },
+
+  // ✅ UPDATE CHEMICAL
   async updateChemical(id: string, data: any) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -93,9 +158,7 @@ export const chemicalService = {
           unit: data.unit || 'kg',
           min_threshold: parseFloat(data.min_threshold || data.min_stock_level) || 25,
         })
-
         .eq('id', id)
-        .eq('user_id', user.id) // ✅ Security: Only update own data
         .select()
         .single();
 
@@ -107,7 +170,7 @@ export const chemicalService = {
     }
   },
 
-  // ✅ DELETE CHEMICAL - Soft Delete (Newly Added)
+  // ✅ DELETE CHEMICAL (Soft Delete)
   async deleteChemical(id: string) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -115,9 +178,8 @@ export const chemicalService = {
 
       const { error } = await supabase
         .from('chemicals')
-        .update({ is_active: false }) // ✅ Soft delete (Data won't be lost)
-        .eq('id', id)
-        .eq('user_id', user.id);      // ✅ Security: Only delete own data
+        .update({ is_active: false })
+        .eq('id', id);
 
       if (error) throw error;
       return true;
@@ -127,3 +189,4 @@ export const chemicalService = {
     }
   }
 };
+

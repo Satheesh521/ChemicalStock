@@ -2,6 +2,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { chemicalService } from '@/services/chemicalService';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -57,48 +58,38 @@ export default function ChemicalListScreen() {
 
   useEffect(() => {
     loadChemicals();
+
+    let unsub: (() => Promise<void>) | null = null;
+    (async () => {
+      try {
+        unsub = await chemicalService.subscribeToChemicals(async () => {
+          await loadChemicals(false);
+        });
+      } catch (e) {
+        console.warn('Failed to subscribe to chemicals realtime updates', e);
+      }
+    })();
+
+    return () => {
+      if (unsub) unsub().catch(() => { });
+    };
   }, [user]);
 
-  const loadChemicals = async () => {
+  const loadChemicals = async (showloader = true) => {
     try {
-      setLoading(true);
+      if (showloader) {
+        setLoading(true);
+      }
 
       if (!user) {
         Alert.alert('Error', 'Please login to view chemicals');
         return;
       }
 
-      const { data, error } = await supabase
-        .from('chemicals')
-        .select(`
-          id,
-          name,
-          user_id,
-          total_stock,
-          current_stock,
-          unit,
-          min_threshold,
-          start_date,
-          end_date,
-          is_active,
-          hazard_class,
-          created_at
-        `)
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Supabase error:', error);
-        Alert.alert('Error', 'Failed to load chemicals: ' + error.message);
-        setChemicals([]);
-        return;
-      }
-
+      const data = await chemicalService.getChemicals();
       const processedData = (data || []).map((chem: any) => {
         const currentStock = parseFloat(chem.current_stock) || 0;
         const minThreshold = parseFloat(chem.min_threshold) || 0;
-
         const maxStock = minThreshold * 3 || 1;
         const stockPercentage = currentStock > 0
           ? Math.min(Math.round((currentStock / maxStock) * 100), 100)
@@ -119,14 +110,14 @@ export default function ChemicalListScreen() {
       Alert.alert('Error', 'Failed to load chemicals. Please try again.');
       setChemicals([]);
     } finally {
-      setLoading(false);
+      if (showloader) setLoading(false);
       setRefreshing(false);
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadChemicals();
+    await loadChemicals(false);
   };
 
   const fetchStockOutHistory = async (chemicalId: string) => {
@@ -156,7 +147,6 @@ export default function ChemicalListScreen() {
     router.setParams({ filter: nextFilter });
   };
 
-  // ✅ FIXED: Filter chemicals logic
   const filteredChemicals = useMemo(() => {
     let filtered = chemicals;
 
@@ -168,13 +158,11 @@ export default function ChemicalListScreen() {
 
     switch (filterStatus) {
       case 'low':
-        // Show chemicals with stock > 0 AND <= min_threshold
         filtered = filtered.filter(c =>
           c.current_stock > 0 && c.current_stock <= c.min_threshold
         );
         break;
       case 'out':
-        // Show chemicals with 0 or negative stock
         filtered = filtered.filter(c => c.current_stock <= 0);
         break;
     }
@@ -280,7 +268,6 @@ export default function ChemicalListScreen() {
         />
       </View>
 
-      {/* ✅ FIXED: Filter Tabs Counts */}
       <View style={styles.filterContainer}>
         {[
           { key: 'all', label: 'All', count: chemicals.length },
@@ -303,12 +290,14 @@ export default function ChemicalListScreen() {
               styles.filterTab,
               filterStatus === filter.key && styles.activeFilterTab,
             ]}
-            onPress={() => handleFilterPress(filter.key as 'all' | 'low' | 'out')}>
+            onPress={() => handleFilterPress(filter.key as 'all' | 'low' | 'out')}
+          >
             <ThemedText
               style={[
                 styles.filterTabText,
                 filterStatus === filter.key && styles.activeFilterTabText,
-              ]}>
+              ]}
+            >
               {filter.label}
               {filter.count >= 0 && (
                 <ThemedText style={styles.filterCount}> ({filter.count})</ThemedText>
@@ -406,6 +395,7 @@ export default function ChemicalListScreen() {
     </ThemedView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {

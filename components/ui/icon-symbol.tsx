@@ -26,6 +26,14 @@ const MAPPING = {
   'profile': 'account-circle',
   'chemicals': 'science',
   'camera.viewfinder': 'camera',
+  // Additional mappings for the app
+  'person.circle.fill': 'account-circle',
+  // Material Community Icons fallbacks (used in some screens)
+  'flask': 'science',
+  'tray-arrow-up': 'upload',
+  'tray-arrow-down': 'download',
+  'file-document-outline': 'description',
+  'account-circle': 'account-circle',
 } as IconMapping;
 
 /**
@@ -45,5 +53,10 @@ export function IconSymbol({
   style?: StyleProp<TextStyle>;
   weight?: SymbolWeight;
 }) {
-  return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />;
+  const iconName = MAPPING[name];
+  if (!iconName) {
+    console.warn(`IconSymbol: No mapping found for "${name}", using fallback icon`);
+    return <MaterialIcons color={color} size={size} name="help-outline" style={style} />;
+  }
+  return <MaterialIcons color={color} size={size} name={iconName} style={style} />;
 }

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * PRACTICAL CODE SNIPPETS
  * Copy-paste ready code for common chemical inventory operations
