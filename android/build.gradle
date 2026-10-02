@@ -40,7 +40,7 @@ allprojects {
     }
 }
 subprojects {
-    afterEvaluate { project ->
+    def configureKotlin = { project ->
         project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
             kotlinOptions {
                 freeCompilerArgs += [
@@ -48,6 +48,14 @@ subprojects {
                     "plugin:androidx.compose.compiler.plugins.kotlin:suppressKotlinVersionCompatibilityCheck=true"
                 ]
             }
+        }
+    }
+
+    if (project.state.executed) {
+        configureKotlin(project)
+    } else {
+        project.afterEvaluate { proj ->
+            configureKotlin(proj)
         }
     }
 }
