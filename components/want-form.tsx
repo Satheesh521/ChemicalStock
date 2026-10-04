@@ -217,7 +217,7 @@ export function WantForm({
           End
         </ThemedText>
         <ThemedText style={[styles.cell, styles.cellStock]} type="subtitle">
-          Stock
+          Total
         </ThemedText>
         <ThemedText style={[styles.cell, styles.cellAction]} type="subtitle">
           Action

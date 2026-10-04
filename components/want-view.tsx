@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import {
   FlatList,
+  RefreshControl,
   StyleSheet,
   TextInput,
   TouchableOpacity,
@@ -28,7 +29,9 @@ export type WantViewProps = {
   stockOutItems?: StockOutItem[];
   onSelectItem: (item: WantItem) => void;
   onDeleteItem: (id: string) => void;
+  onDeleteStockOutItem?: (id: string) => void;
   formatDate: (d?: string) => string;
+  onRefreshData?: () => Promise<void> | void; // Pull to refresh callback
 };
 
 export function WantView({
@@ -36,16 +39,31 @@ export function WantView({
   stockOutItems = [],
   onSelectItem,
   onDeleteItem,
+  onDeleteStockOutItem,
   formatDate,
+  onRefreshData,
 }: WantViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [focusedInput, setFocusedInput] = useState(false);
   const [activeTab, setActiveTab] = useState<'chemicals' | 'stockout'>('chemicals');
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Helper to safely extract chemical name
+  // Pull-to-Refresh Handler
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    if (onRefreshData) {
+      await onRefreshData();
+    } else {
+      // Small timeout if no async call provided to hide loader gracefully
+      await new Promise(resolve => setTimeout(resolve, 800));
+    }
+    setRefreshing(false);
+  }, [onRefreshData]);
+
+  // Helper to safely extract and trim chemical name
   const getChemName = (item: any): string => {
-    return item?.chemicalName || item?.chemical_name || '';
+    return (item?.chemicalName || item?.chemical_name || '').trim();
   };
 
   const searchSuggestions = useMemo(() => {
@@ -101,33 +119,28 @@ export function WantView({
     return value;
   };
 
-  const convertKgToUnit = (kg: number, unit: string): number => {
-    const u = (unit || 'kg').toLowerCase();
-    if (u === 'kg') return kg;
-    if (u === 'g') return kg * 1000;
-    if (u === 'mg') return kg * 1000000;
-    return kg;
-  };
-
   const filteredChemicals = useMemo(() => {
     if (!searchQuery.trim()) return items;
     const query = searchQuery.toLowerCase().trim();
     return items.filter(item => getChemName(item).toLowerCase().startsWith(query));
   }, [items, searchQuery]);
 
+  // Accurate calculation for Total Stock & Current Stock
   const chemicalsWithRemaining = useMemo(() => {
     return filteredChemicals.map((chemical: any) => {
-      const totalStock = parseFloat(chemical.totalStock || chemical.total_stock) || 0;
+      const initialTotal = parseFloat(chemical.totalStock ?? chemical.total_stock ?? '0') || 0;
+
       const stockOuts = stockOutItems
         .filter(item => getChemName(item).toLowerCase() === getChemName(chemical).toLowerCase())
         .map(item => convertUnitToKg(parseFloat(item.stockValue || item.stock_value || '0'), item.stockUnit || item.stock_unit || 'kg'));
 
       const totalStockOut = stockOuts.reduce((sum, val) => sum + val, 0);
-      const remainingStock = calculateRemaining(totalStock, totalStockOut);
+      const remainingStock = calculateRemaining(initialTotal, totalStockOut);
 
       return {
         ...chemical,
-        remainingStock: formatStockValue(isNaN(remainingStock) ? 0 : remainingStock),
+        displayTotalStock: initialTotal,
+        remainingStock: formatStockValue(isNaN(remainingStock) || remainingStock < 0 ? 0 : remainingStock),
         totalStockOut: formatStockValue(totalStockOut),
       };
     });
@@ -141,29 +154,16 @@ export function WantView({
 
   const getStockOutWithRemaining = useMemo(() => {
     return filteredStockOut.map((stockOut: any) => {
-      const matchingChemical = items.find(
-        item => getChemName(item).toLowerCase() === getChemName(stockOut).toLowerCase()
-      );
-      const totalStock = matchingChemical ? parseFloat((matchingChemical as any).totalStock || (matchingChemical as any).total_stock || '0') : 0;
-
-      const stockOuts = stockOutItems
-        .filter(item => getChemName(item).toLowerCase() === getChemName(stockOut).toLowerCase())
-        .map(item => convertUnitToKg(parseFloat(item.stockValue || item.stock_value || '0'), item.stockUnit || item.stock_unit || 'kg'));
-
-      const totalStockOut = stockOuts.reduce((sum, val) => sum + val, 0);
-      const remainingStockKg = calculateRemaining(totalStock, totalStockOut);
-      const unit = stockOut.stockUnit || stockOut.stock_unit || 'kg';
-      const remainingInUnit = convertKgToUnit(remainingStockKg, unit);
       const originalStockValue = parseFloat(stockOut.stockValue || stockOut.stock_value || '0');
+      const unit = stockOut.stockUnit || stockOut.stock_unit || 'kg';
 
       return {
         ...stockOut,
-        remainingStock: formatStockValue(remainingInUnit),
         displayStock: formatStockValue(originalStockValue),
         stockUnit: unit,
       };
     });
-  }, [filteredStockOut, items, stockOutItems]);
+  }, [filteredStockOut]);
 
   const renderSearchBox = () => (
     <View style={styles.searchContainer}>
@@ -266,12 +266,12 @@ export function WantView({
           {getChemName(item) || 'N/A'}
         </ThemedText>
         <ThemedText style={styles.cell}>
-          {item.totalStock || item.total_stock} kg
+          {item.displayTotalStock} kg
         </ThemedText>
         <ThemedText style={[
           styles.cell,
           {
-            color: parseFloat(item.remainingStock) > 0 ? '#49d137' : parseFloat(item.remainingStock) === parseFloat(item.totalStock || item.total_stock) ? '#000' : '#ff4d4d',
+            color: parseFloat(item.remainingStock) > 0 ? '#49d137' : '#ff4d4d',
             fontWeight: '600'
           }
         ]}>
@@ -301,12 +301,15 @@ export function WantView({
           borderRadius: 4
         }
       ]}>
-        {item.displayStock || formatStockValue(parseFloat(item.stockValue || item.stock_value))} {(item.stockUnit || item.stock_unit || 'kg').toLowerCase()}
+        {item.displayStock} {(item.stockUnit || item.stock_unit || 'kg').toLowerCase()}
       </ThemedText>
       <ThemedText style={[styles.cell, { textAlign: 'right', fontSize: 12, opacity: 0.7 }]}>
         {formatDate(item.dateOut || item.created_at)}
       </ThemedText>
-      <TouchableOpacity style={styles.deleteBtn} onPress={() => onDeleteItem(item.id)}>
+      <TouchableOpacity
+        style={styles.deleteBtn}
+        onPress={() => onDeleteStockOutItem ? onDeleteStockOutItem(item.id) : onDeleteItem(item.id)}
+      >
         <ThemedText style={styles.deleteText}>Del</ThemedText>
       </TouchableOpacity>
     </ThemedView>
@@ -324,6 +327,14 @@ export function WantView({
         renderItem={renderItem}
         ItemSeparatorComponent={() => <ThemedView style={{ height: 1, backgroundColor: '#eee' }} />}
         contentContainerStyle={{ paddingBottom: 48 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={['#49d137']} // Android loader color
+            tintColor="#49d137" // iOS loader color
+          />
+        }
         ListEmptyComponent={
           <ThemedView style={styles.empty}>
             {(activeTab === 'chemicals' ? items.length : stockOutItems.length) === 0 ? (

@@ -128,7 +128,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="stockInScreen"
         options={{
-          title: 'Stock Entry',
+          title: 'Entry',
           href: canSeeAllScreens ? undefined : null,
           tabBarIcon: ({ color }) => renderIcon('tray-arrow-down', color),
         }}
