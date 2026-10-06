@@ -97,7 +97,7 @@ export function WantForm({
       </View>
 
       <ThemedText type="title" style={styles.headerTitle}>
-        Want — Add Chemical
+        Add Chemical
       </ThemedText>
 
       <View style={styles.field}>

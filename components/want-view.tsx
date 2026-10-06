@@ -16,11 +16,12 @@ type StockOutItem = {
   id: string;
   chemicalName?: string;
   chemical_name?: string;
-  stockValue: string;
+  stockValue?: string;
   stock_value?: string;
-  stockUnit: string;
+  stockUnit?: string;
   stock_unit?: string;
   dateOut?: string;
+  date_out?: string;
   created_at?: string;
 };
 
@@ -31,7 +32,7 @@ export type WantViewProps = {
   onDeleteItem: (id: string) => void;
   onDeleteStockOutItem?: (id: string) => void;
   formatDate: (d?: string) => string;
-  onRefreshData?: () => Promise<void> | void; // Pull to refresh callback
+  onRefreshData?: () => Promise<void> | void;
 };
 
 export function WantView({
@@ -49,21 +50,18 @@ export function WantView({
   const [activeTab, setActiveTab] = useState<'chemicals' | 'stockout'>('chemicals');
   const [refreshing, setRefreshing] = useState(false);
 
-  // Pull-to-Refresh Handler
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     if (onRefreshData) {
       await onRefreshData();
     } else {
-      // Small timeout if no async call provided to hide loader gracefully
       await new Promise(resolve => setTimeout(resolve, 800));
     }
     setRefreshing(false);
   }, [onRefreshData]);
 
-  // Helper to safely extract and trim chemical name
   const getChemName = (item: any): string => {
-    return (item?.chemicalName || item?.chemical_name || '').trim();
+    return (item?.chemicalName || item?.chemical_name || item?.name || '').trim();
   };
 
   const searchSuggestions = useMemo(() => {
@@ -97,26 +95,9 @@ export function WantView({
     setFocusedInput(false);
   };
 
-  const calculateRemaining = (total: number, ...deductions: number[]): number => {
-    const factor = 10000;
-    let result = Math.round(total * factor);
-    for (const deduction of deductions) {
-      result -= Math.round(deduction * factor);
-    }
-    return result / factor;
-  };
-
   const formatStockValue = (value: number | undefined): string => {
     if (value === undefined || value === null || isNaN(value)) return '0.000';
     return Number(value).toFixed(3);
-  };
-
-  const convertUnitToKg = (value: number, unit: string): number => {
-    const u = (unit || 'kg').toLowerCase();
-    if (u === 'kg') return value;
-    if (u === 'g') return value / 1000;
-    if (u === 'mg') return value / 1000000;
-    return value;
   };
 
   const filteredChemicals = useMemo(() => {
@@ -125,26 +106,21 @@ export function WantView({
     return items.filter(item => getChemName(item).toLowerCase().startsWith(query));
   }, [items, searchQuery]);
 
-  // Accurate calculation for Total Stock & Current Stock
+  // ✅ FIXED: Database handles the stock updates, directly parse values without double-subtracting
   const chemicalsWithRemaining = useMemo(() => {
     return filteredChemicals.map((chemical: any) => {
-      const initialTotal = parseFloat(chemical.totalStock ?? chemical.total_stock ?? '0') || 0;
-
-      const stockOuts = stockOutItems
-        .filter(item => getChemName(item).toLowerCase() === getChemName(chemical).toLowerCase())
-        .map(item => convertUnitToKg(parseFloat(item.stockValue || item.stock_value || '0'), item.stockUnit || item.stock_unit || 'kg'));
-
-      const totalStockOut = stockOuts.reduce((sum, val) => sum + val, 0);
-      const remainingStock = calculateRemaining(initialTotal, totalStockOut);
+      // original total stock setup when added
+      const totalStockVal = parseFloat(chemical.totalStock ?? chemical.total_stock ?? chemical.total ?? '0') || 0;
+      // current available stock directly from database
+      const currentStockVal = parseFloat(chemical.currentStock ?? chemical.current_stock ?? chemical.remainingStock ?? totalStockVal) || 0;
 
       return {
         ...chemical,
-        displayTotalStock: initialTotal,
-        remainingStock: formatStockValue(isNaN(remainingStock) || remainingStock < 0 ? 0 : remainingStock),
-        totalStockOut: formatStockValue(totalStockOut),
+        displayTotalStock: totalStockVal,
+        remainingStock: formatStockValue(currentStockVal),
       };
     });
-  }, [filteredChemicals, stockOutItems]);
+  }, [filteredChemicals]);
 
   const filteredStockOut = useMemo(() => {
     if (!searchQuery.trim()) return stockOutItems;
@@ -154,12 +130,21 @@ export function WantView({
 
   const getStockOutWithRemaining = useMemo(() => {
     return filteredStockOut.map((stockOut: any) => {
-      const originalStockValue = parseFloat(stockOut.stockValue || stockOut.stock_value || '0');
-      const unit = stockOut.stockUnit || stockOut.stock_unit || 'kg';
+      const kg = parseFloat(stockOut.stock_kg || stockOut.kg || '0') || 0;
+      const g = parseFloat(stockOut.stock_g || stockOut.g || '0') || 0;
+      const mg = parseFloat(stockOut.stock_mg || stockOut.mg || '0') || 0;
+
+      let stockVal = parseFloat(stockOut.stockValue || stockOut.stock_value || '0');
+      let unit = stockOut.stockUnit || stockOut.stock_unit || 'kg';
+
+      if (stockVal === 0 && (kg > 0 || g > 0 || mg > 0)) {
+        stockVal = kg + (g / 1000) + (mg / 1000000);
+        unit = 'kg';
+      }
 
       return {
         ...stockOut,
-        displayStock: formatStockValue(originalStockValue),
+        displayStock: formatStockValue(stockVal),
         stockUnit: unit,
       };
     });
@@ -289,22 +274,11 @@ export function WantView({
       <ThemedText style={[styles.cell, { flex: 2 }]} type="defaultSemiBold">
         {getChemName(item) || 'N/A'}
       </ThemedText>
-      <ThemedText style={[
-        styles.cell,
-        (item.stockUnit || item.stock_unit || 'kg').toLowerCase() === 'mg' && {
-          fontSize: 12,
-          fontWeight: '700',
-          color: '#ffffff',
-          backgroundColor: 'rgba(0,0,0,0.3)',
-          paddingHorizontal: 4,
-          paddingVertical: 2,
-          borderRadius: 4
-        }
-      ]}>
-        {item.displayStock} {(item.stockUnit || item.stock_unit || 'kg').toLowerCase()}
+      <ThemedText style={styles.cell}>
+        {item.displayStock} {item.stockUnit}
       </ThemedText>
       <ThemedText style={[styles.cell, { textAlign: 'right', fontSize: 12, opacity: 0.7 }]}>
-        {formatDate(item.dateOut || item.created_at)}
+        {formatDate(item.date_out || item.dateOut || item.created_at)}
       </ThemedText>
       <TouchableOpacity
         style={styles.deleteBtn}
@@ -331,8 +305,8 @@ export function WantView({
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#49d137']} // Android loader color
-            tintColor="#49d137" // iOS loader color
+            colors={['#49d137']}
+            tintColor="#49d137"
           />
         }
         ListEmptyComponent={
