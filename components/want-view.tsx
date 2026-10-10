@@ -1,4 +1,5 @@
-import { useMemo, useState, useCallback } from 'react';
+// D:\ReactNative\ChemicalStock\components\want-view.tsx
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   RefreshControl,
@@ -49,6 +50,12 @@ export function WantView({
   const [focusedInput, setFocusedInput] = useState(false);
   const [activeTab, setActiveTab] = useState<'chemicals' | 'stockout'>('chemicals');
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (onRefreshData) {
+      onRefreshData();
+    }
+  }, [activeTab]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -106,18 +113,16 @@ export function WantView({
     return items.filter(item => getChemName(item).toLowerCase().startsWith(query));
   }, [items, searchQuery]);
 
-  // ✅ FIXED: Database handles the stock updates, directly parse values without double-subtracting
+  // ✅ Total stock is static baseline; Current stock is dynamic
   const chemicalsWithRemaining = useMemo(() => {
     return filteredChemicals.map((chemical: any) => {
-      // original total stock setup when added
-      const totalStockVal = parseFloat(chemical.totalStock ?? chemical.total_stock ?? chemical.total ?? '0') || 0;
-      // current available stock directly from database
-      const currentStockVal = parseFloat(chemical.currentStock ?? chemical.current_stock ?? chemical.remainingStock ?? totalStockVal) || 0;
+      const totalStockVal = parseFloat(chemical.total_stock ?? chemical.totalStock ?? '0') || 0;
+      const currentStockVal = parseFloat(chemical.current_stock ?? chemical.currentStock ?? totalStockVal) || 0;
 
       return {
         ...chemical,
-        displayTotalStock: totalStockVal,
-        remainingStock: formatStockValue(currentStockVal),
+        displayTotalStock: formatStockValue(totalStockVal), // Total stock mppothum static-a irukkum
+        remainingStock: formatStockValue(currentStockVal),   // Current stock mattum stock out aagum pothu change aagum
       };
     });
   }, [filteredChemicals]);
@@ -149,6 +154,18 @@ export function WantView({
       };
     });
   }, [filteredStockOut]);
+
+  const handleDeleteChemical = (id: string) => {
+    onDeleteItem(id);
+  };
+
+  const handleDeleteStockOut = (id: string) => {
+    if (onDeleteStockOutItem) {
+      onDeleteStockOutItem(id);
+    } else {
+      onDeleteItem(id);
+    }
+  };
 
   const renderSearchBox = () => (
     <View style={styles.searchContainer}>
@@ -262,7 +279,10 @@ export function WantView({
         ]}>
           {item.remainingStock} kg
         </ThemedText>
-        <TouchableOpacity onPress={() => onDeleteItem(item.id)} style={styles.deleteBtn}>
+        <TouchableOpacity
+          onPress={() => handleDeleteChemical(item.id)}
+          style={styles.deleteBtn}
+        >
           <ThemedText style={styles.deleteText}>Del</ThemedText>
         </TouchableOpacity>
       </ThemedView>
@@ -282,7 +302,7 @@ export function WantView({
       </ThemedText>
       <TouchableOpacity
         style={styles.deleteBtn}
-        onPress={() => onDeleteStockOutItem ? onDeleteStockOutItem(item.id) : onDeleteItem(item.id)}
+        onPress={() => handleDeleteStockOut(item.id)}
       >
         <ThemedText style={styles.deleteText}>Del</ThemedText>
       </TouchableOpacity>

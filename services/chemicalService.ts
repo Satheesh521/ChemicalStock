@@ -4,7 +4,9 @@ import { supabase } from '../lib/supabase';
 export interface ChemicalInput {
   name: string;
   cas_number?: string;
-  quantity: string | number;
+  quantity?: string | number;
+  total_stock?: string | number;
+  current_stock?: string | number;
   unit?: string;
   min_stock_level?: string | number;
   location?: string;
@@ -15,11 +17,14 @@ export interface ChemicalInput {
 }
 
 export const chemicalService = {
-  // ✅ ADD CHEMICAL
+  // ✅ ADD CHEMICAL (Total Stock is set statically at creation)
   async addChemical(data: ChemicalInput | any) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated. Please login.');
+
+      const initialTotal = parseFloat(data.total_stock || data.quantity || '0') || 0;
+      const initialCurrent = parseFloat(data.current_stock ?? data.total_stock ?? data.quantity ?? '0') || initialTotal;
 
       console.log('📤 Sending to Supabase:', data);
 
@@ -28,8 +33,8 @@ export const chemicalService = {
         .insert({
           user_id: user.id,
           name: data.name,
-          total_stock: parseFloat(data.total_stock || data.quantity) || 0,
-          current_stock: parseFloat(data.current_stock || data.quantity) || 0,
+          total_stock: initialTotal,
+          current_stock: initialCurrent,
           unit: data.unit || 'kg',
           min_threshold: parseFloat(data.min_threshold || data.min_stock_level) || 25,
           is_active: true,
@@ -50,7 +55,7 @@ export const chemicalService = {
     }
   },
 
-  // ✅ GET ALL CHEMICALS (Shared Company Inventory)
+  // ✅ GET ALL CHEMICALS
   async getChemicals() {
     try {
       const {
@@ -84,14 +89,9 @@ export const chemicalService = {
     }
   },
 
-
-  // Subscribe to realtime changes for chemicals. Returns unsubscribe function.
+  // Realtime subscriber for chemicals
   subscribeToChemicals(onChange: (payload: any) => void) {
-    // Try to use Supabase Realtime (postgres_changes) if available
     try {
-      // channel API available in newer supabase-js
-      // subscribe to INSERT/UPDATE/DELETE on chemicals
-      // Note: this may be a no-op if realtime is not configured on the project
       let channel: any = null;
       if ((supabase as any).channel) {
         channel = (supabase as any)
@@ -110,7 +110,6 @@ export const chemicalService = {
           .subscribe();
       }
 
-      // Return unsubscribe
       return async () => {
         try {
           if (channel && channel.unsubscribe) await channel.unsubscribe();
@@ -119,7 +118,6 @@ export const chemicalService = {
         }
       };
     } catch (err) {
-      // Fallback: simple polling every 10s
       console.warn('Realtime subscribe failed, falling back to polling', err);
       let cancelled = false;
       const interval = setInterval(async () => {
@@ -143,21 +141,28 @@ export const chemicalService = {
     }
   },
 
-  // ✅ UPDATE CHEMICAL
+  // ✅ UPDATE CHEMICAL (Preserves Total Stock unless explicitly modified)
   async updateChemical(id: string, data: any) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated.');
 
+      const updatePayload: any = {
+        name: data.name,
+        unit: data.unit || 'kg',
+        min_threshold: parseFloat(data.min_threshold || data.min_stock_level) || 25,
+      };
+
+      if (data.total_stock !== undefined) {
+        updatePayload.total_stock = parseFloat(data.total_stock) || 0;
+      }
+      if (data.current_stock !== undefined) {
+        updatePayload.current_stock = parseFloat(data.current_stock) || 0;
+      }
+
       const { data: result, error } = await supabase
         .from('chemicals')
-        .update({
-          name: data.name,
-          total_stock: parseFloat(data.total_stock || data.quantity) || 0,
-          current_stock: parseFloat(data.current_stock || data.quantity) || 0,
-          unit: data.unit || 'kg',
-          min_threshold: parseFloat(data.min_threshold || data.min_stock_level) || 25,
-        })
+        .update(updatePayload)
         .eq('id', id)
         .select()
         .single();
@@ -189,4 +194,3 @@ export const chemicalService = {
     }
   }
 };
-

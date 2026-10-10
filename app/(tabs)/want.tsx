@@ -1,3 +1,4 @@
+// D:\ReactNative\ChemicalStock\app\(tabs)\want.tsx
 import { supabase } from '@/lib/supabase';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -38,14 +39,17 @@ export default function WantScreen() {
         chemicalName: item.name,
         startDate: item.start_date,
         endDate: item.end_date,
-        totalStock: (item.total_stock ?? item.current_stock ?? '0').toString(),
+        // ✅ Direct-a item.total_stock edukrom (Total stock changes aagadhu)
+        totalStock: (item.total_stock !== undefined && item.total_stock !== null)
+          ? item.total_stock.toString()
+          : (item.current_stock ?? '0').toString(),
         currentStock: (item.current_stock ?? '0').toString(),
       }));
       setItems(mappedData);
     }
   }, []);
 
-  // ✅ Auto-refresh when tab comes into focus
+  // Auto-refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       fetchChemicals();
@@ -66,18 +70,21 @@ export default function WantScreen() {
         name: item.chemicalName,
         start_date: item.startDate,
         end_date: item.endDate,
-        current_stock: parsedStock,
         total_stock: parsedStock,
+        current_stock: parsedStock, // First time add panrapadhu renduமே same value
         unit: 'kg',
         min_threshold: 25,
         is_active: true,
       }]);
 
       if (!error) {
-        fetchChemicals();
+        await fetchChemicals();
+      } else {
+        throw error;
       }
     } catch (error) {
       console.error('Error adding item:', error);
+      throw error;
     }
   };
 
@@ -95,7 +102,7 @@ export default function WantScreen() {
       }).eq('id', id).eq('user_id', user.id);
 
       if (!error) {
-        fetchChemicals();
+        await fetchChemicals();
       }
     } catch (error) {
       console.error('Error updating item:', error);
@@ -110,8 +117,6 @@ export default function WantScreen() {
         return;
       }
 
-      setItems(prev => prev.filter(item => item.id !== id));
-
       const { error } = await supabase
         .from('chemicals')
         .update({ is_active: false })
@@ -119,14 +124,14 @@ export default function WantScreen() {
         .eq('user_id', user.id);
 
       if (error) {
-        await fetchChemicals();
         throw error;
       }
 
       await fetchChemicals();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting item:', error);
       await fetchChemicals();
+      throw error;
     }
   };
 
@@ -257,7 +262,7 @@ export default function WantScreen() {
       console.error('Add/Update Error:', error);
       Alert.alert('Error', error.message || 'Failed to save to database');
     }
-  }, [chemicalName, startDate, endDate, startDateObj, endDateObj, totalStock, editingId, resetForm, fetchChemicals]);
+  }, [chemicalName, startDate, endDate, startDateObj, endDateObj, totalStock, editingId, resetForm]);
 
   const formatDate = useCallback((d?: string) => {
     if (!d) return '';

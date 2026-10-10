@@ -1,5 +1,5 @@
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/lib/supabase'; // Ungal Supabase import path
+import { supabase } from '@/lib/supabase';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -15,45 +15,66 @@ export default function TabLayout() {
   const [roleLoading, setRoleLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     async function fetchRole() {
       if (user?.id) {
         try {
+          // Priority to profile role from auth user if available
+          if (user.role) {
+            setRole(user.role.toLowerCase());
+          }
+
           const { data, error } = await supabase
             .from('profiles')
             .select('role')
             .eq('id', user.id)
-            .single();
+            .maybeSingle();
 
-          if (!error && data) {
-            setRole(data.role?.toLowerCase());
+          if (isMounted) {
+            if (!error && data?.role) {
+              setRole(data.role.toLowerCase());
+            }
           }
         } catch (e) {
           console.error('Error fetching role:', e);
         } finally {
-          setRoleLoading(false);
+          if (isMounted) setRoleLoading(false);
         }
       } else {
-        setRoleLoading(false);
+        if (isMounted) setRoleLoading(false);
       }
     }
+
     fetchRole();
+
+    // Safety fallback: 3 செகண்டிற்கு மேல் role profile load ஆகாவிட்டால் spinner-ஐ நிறுத்திவிடும்
+    const timer = setTimeout(() => {
+      if (isMounted) setRoleLoading(false);
+    }, 3000);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
   }, [user]);
 
   if (authLoading || roleLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#007AFF" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8f9fa' }}>
+        <ActivityIndicator size="large" color="#2E7D32" />
       </View>
     );
   }
 
   // Database Role Based Conditions
-  const isFullAccess = ['admin', 'lab', 'dyesincharge'].includes(role || '');
-  const isViewOnly = ['owner', 'manager'].includes(role || '');
-  const isRestricted = ['supervisor', 'sample'].includes(role || '');
+  const activeRole = role || user?.role?.toLowerCase() || 'user';
+  const isFullAccess = ['admin', 'lab', 'dyesincharge'].includes(activeRole);
+  const isViewOnly = ['owner', 'manager'].includes(activeRole);
+  const isRestricted = ['supervisor', 'sample'].includes(activeRole);
 
   const canSeeAllScreens = isFullAccess || isViewOnly;
-  const canSeeBasicScreens = canSeeAllScreens || isRestricted;
+  const canSeeBasicScreens = canSeeAllScreens || isRestricted || activeRole === 'user';
 
   // Safe Icon Renderer Function
   const renderIcon = (name: React.ComponentProps<typeof MaterialCommunityIcons>['name'], color: string) => {

@@ -1,11 +1,10 @@
-
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { chemicalService } from '@/services/chemicalService';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -141,6 +140,58 @@ export default function ChemicalListScreen() {
     setSelectedChemical(chemical);
     fetchStockOutHistory(chemical.id);
     setShowStockOutModal(true);
+  };
+
+  const handleDeleteStockOutRecord = async (stockOutId: string, item: any) => {
+    Alert.alert(
+      'Delete Stock Out',
+      'Are you sure you want to delete this record? The stock quantity will be added back.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { data: { user } } = await supabase.auth.getUser();
+              if (!user) throw new Error('User not authenticated');
+
+              const kg = parseFloat(item.stock_kg || '0') || 0;
+              const g = parseFloat(item.stock_g || '0') || 0;
+              const mg = parseFloat(item.stock_mg || '0') || 0;
+              const stockToAdd = kg + (g / 1000) + (mg / 1000000);
+
+              // ✅ user_id check-oda proper delete query
+              const { error: deleteError } = await supabase
+                .from('stock_out')
+                .delete()
+                .eq('id', stockOutId)
+                .eq('user_id', user.id);
+
+              if (deleteError) throw deleteError;
+
+              if (selectedChemical) {
+                const updatedCurrentStock = (parseFloat(selectedChemical.current_stock as any) || 0) + stockToAdd;
+                await supabase
+                  .from('chemicals')
+                  .update({ current_stock: updatedCurrentStock })
+                  .eq('id', selectedChemical.id);
+              }
+
+              Alert.alert('Success', 'Stock Out record deleted successfully');
+
+              if (selectedChemical) {
+                await fetchStockOutHistory(selectedChemical.id);
+              }
+              await loadChemicals(false);
+            } catch (error: any) {
+              console.error('Error deleting stock out:', error);
+              Alert.alert('Error', error.message || 'Failed to delete record');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleFilterPress = (nextFilter: 'all' | 'low' | 'out') => {
@@ -284,24 +335,24 @@ export default function ChemicalListScreen() {
             label: 'Out of Stock',
             count: chemicals.filter(c => c.current_stock <= 0).length,
           },
-        ].map(filter => (
+        ].map(filterItem => (
           <TouchableOpacity
-            key={filter.key}
+            key={filterItem.key}
             style={[
               styles.filterTab,
-              filterStatus === filter.key && styles.activeFilterTab,
+              filterStatus === filterItem.key && styles.activeFilterTab,
             ]}
-            onPress={() => handleFilterPress(filter.key as 'all' | 'low' | 'out')}
+            onPress={() => handleFilterPress(filterItem.key as 'all' | 'low' | 'out')}
           >
             <ThemedText
               style={[
                 styles.filterTabText,
-                filterStatus === filter.key && styles.activeFilterTabText,
+                filterStatus === filterItem.key && styles.activeFilterTabText,
               ]}
             >
-              {filter.label}
-              {filter.count >= 0 && (
-                <ThemedText style={styles.filterCount}> ({filter.count})</ThemedText>
+              {filterItem.label}
+              {filterItem.count >= 0 && (
+                <ThemedText style={styles.filterCount}> ({filterItem.count})</ThemedText>
               )}
             </ThemedText>
           </TouchableOpacity>
@@ -379,15 +430,23 @@ export default function ChemicalListScreen() {
               <View style={styles.stockOutItem}>
                 <View style={styles.stockOutItemHeader}>
                   <ThemedText style={styles.stockOutDate}>
-                    {new Date(item.date_out).toLocaleDateString()}
+                    {new Date(item.date_out || item.created_at).toLocaleDateString()}
                   </ThemedText>
                   <ThemedText style={styles.stockOutQuantity}>
-                    -{item.stock_kg}kg {item.stock_g}g {item.stock_mg}mg
+                    -{item.stock_kg || 0}kg {item.stock_g || 0}g {item.stock_mg || 0}mg
                   </ThemedText>
                 </View>
-                <ThemedText style={styles.stockOutMcNo}>
-                  MC/No: {item.mc_no}
-                </ThemedText>
+                <View style={styles.stockOutItemFooter}>
+                  <ThemedText style={styles.stockOutMcNo}>
+                    MC/No: {item.mc_no || 'N/A'}
+                  </ThemedText>
+                  <TouchableOpacity
+                    style={styles.deleteStockOutBtn}
+                    onPress={() => handleDeleteStockOutRecord(item.id, item)}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#dc3545" />
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
           />
@@ -396,7 +455,6 @@ export default function ChemicalListScreen() {
     </ThemedView>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
@@ -478,10 +536,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#e9ecef',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
     elevation: 3,
   },
   chemicalHeader: {
@@ -536,15 +590,19 @@ const styles = StyleSheet.create({
   },
   chemicalDetails: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
+    rowGap: 8,
+    columnGap: 12,
     marginBottom: 8,
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
   },
   detailRow: {
-    alignItems: 'center',
     flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: '45%',
   },
   detailLabel: {
     fontSize: 12,
@@ -658,6 +716,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 4,
   },
+  stockOutItemFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
   stockOutDate: {
     fontSize: 14,
     color: '#6c757d',
@@ -670,5 +734,8 @@ const styles = StyleSheet.create({
   stockOutMcNo: {
     fontSize: 13,
     color: '#495057',
+  },
+  deleteStockOutBtn: {
+    padding: 4,
   },
 });

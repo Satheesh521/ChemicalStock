@@ -5,7 +5,7 @@ export type User = {
   id: string;
   email: string;
   name: string | null;
-  role: 'user' | 'admin' | 'manager';
+  role: 'user' | 'admin' | 'manager' | string;
   created_at: string;
   updated_at: string;
 };
@@ -32,49 +32,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       id: sessionUser.id,
       email: sessionUser.email || '',
       name: profile?.name || sessionUser.user_metadata?.full_name || null,
-      role: profile?.role || 'user',
+      role: profile?.role || sessionUser.user_metadata?.role || 'user',
       created_at: profile?.created_at || new Date().toISOString(),
       updated_at: profile?.updated_at || new Date().toISOString(),
     };
   };
 
-  // Helper function to fetch profile and merge user data
+  // Helper function with Timeout to prevent hanging infinite loader
   const getUserWithProfile = async (sessionUser: any): Promise<User> => {
     try {
-      const { data: profile } = await supabase
+      const fetchProfilePromise = supabase
         .from('profiles')
         .select('*')
         .eq('id', sessionUser.id)
-        .single();
+        .maybeSingle();
 
-      return formatUser(sessionUser, profile);
+      // 3 seconds timeout for profile query
+      const timeoutPromise = new Promise((resolve) =>
+        setTimeout(() => resolve({ data: null, error: true }), 3000)
+      );
+
+      const res: any = await Promise.race([fetchProfilePromise, timeoutPromise]);
+      return formatUser(sessionUser, res?.data);
     } catch {
       return formatUser(sessionUser);
     }
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        const fullUser = await getUserWithProfile(session.user);
-        setUser(fullUser);
-      } else {
-        setUser(null);
+    let isMounted = true;
+
+    const initAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user && isMounted) {
+          const fullUser = await getUserWithProfile(session.user);
+          setUser(fullUser);
+        } else if (isMounted) {
+          setUser(null);
+        }
+      } catch (err) {
+        console.error('Session init error:', err);
+      } finally {
+        if (isMounted) setLoading(false);
       }
-      setLoading(false);
-    });
+    };
+
+    initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
+      if (session?.user && isMounted) {
         const fullUser = await getUserWithProfile(session.user);
         setUser(fullUser);
-      } else {
+      } else if (isMounted) {
         setUser(null);
       }
-      setLoading(false);
+      if (isMounted) setLoading(false);
     });
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, []);

@@ -155,30 +155,22 @@ export const stockOutService = {
     }
   },
 
-  // ✅ 5. DELETE / CANCEL STOCK OUT - database trigger restores stock
+  // ✅ 5. DELETE / CANCEL STOCK OUT - permanent delete from database
   async deleteStockOut(id: string) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      const { data: stockOutItem, error: fetchErr } = await supabase
-        .from('stock_out')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
-
-      if (fetchErr) throw fetchErr;
-      if (!stockOutItem) throw new Error('Record not found for id: ' + String(id));
-
       const { error: deleteError } = await supabase
         .from('stock_out')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user.id);
 
       if (deleteError) throw deleteError;
       return true;
     } catch (error: any) {
-      throw new Error(error.message || 'Failed to revert stock out');
+      throw new Error(error.message || 'Failed to delete stock out record');
     }
   },
 
